@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 461.13 164.35">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: none;
+      }
+
+      .cls-2 {
+        stroke: #000;
+        stroke-miterlimit: 10;
+        stroke-width: 5.01px;
+      }
+
+      .cls-2, .cls-3 {
+        fill: #fff;
+      }
+
+      .cls-4 {
+        clip-path: url(#clippath);
+      }
+    </style>
+    <clipPath id="clippath">
+      <rect class="cls-1" x="71.71" y="17.3" width="317.72" height="129.74"/>
+    </clipPath>
+  </defs>
+  <g id="Layer_1-2" data-name="Layer 1">
+    <g>
+      <rect class="cls-2" x="71.71" y="17.3" width="317.72" height="129.74"/>
+      <g class="cls-4">
+        <g>
+          <g>
+            <line class="cls-3" x1="2.33" y1="163.44" x2="65.54" y2=".91"/>
+            <rect x="-53.26" y="79.67" width="174.39" height="5.01" transform="translate(-54.95 84.02) rotate(-68.75)"/>
+          </g>
+          <g>
+            <line class="cls-3" x1="67.88" y1="163.44" x2="131.08" y2=".91"/>
+            <rect x="12.29" y="79.67" width="174.39" height="5.01" transform="translate(-13.17 145.1) rotate(-68.75)"/>
+          </g>
+          <g>
+            <line class="cls-3" x1="133.42" y1="163.44" x2="196.63" y2=".91"/>
+            <rect x="77.83" y="79.67" width="174.39" height="5.01" transform="translate(28.62 206.19) rotate(-68.75)"/>
+          </g>
+          <g>
+            <line class="cls-3" x1="198.96" y1="163.44" x2="262.17" y2=".91"/>
+            <rect x="143.37" y="79.67" width="174.39" height="5.01" transform="translate(70.4 267.27) rotate(-68.75)"/>
+          </g>
+          <g>
+            <line class="cls-3" x1="264.5" y1="163.44" x2="327.71" y2=".91"/>
+            <rect x="208.91" y="79.67" width="174.39" height="5.01" transform="translate(112.18 328.35) rotate(-68.75)"/>
+          </g>
+          <g>
+            <line class="cls-3" x1="330.05" y1="163.44" x2="393.25" y2=".91"/>
+            <rect x="274.45" y="79.67" width="174.39" height="5.01" transform="translate(153.97 389.44) rotate(-68.75)"/>
+          </g>
+          <g>
+            <line class="cls-3" x1="395.59" y1="163.44" x2="458.8" y2=".91"/>
+            <rect x="340" y="79.67" width="174.39" height="5.01" transform="translate(195.75 450.52) rotate(-68.75)"/>
+          </g>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>

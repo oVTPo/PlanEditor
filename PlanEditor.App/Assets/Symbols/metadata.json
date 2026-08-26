@@ -1,0 +1,42 @@
+{
+  "chi-huy.svg": {
+    "name": "Vị trí chỉ huy",
+    "category": "Tác chiến",
+    "description": "Vị trí chỉ huy"
+  },
+  "nha-cao-tang.svg": {
+    "name": "Nhà cao tầng",
+    "category": "Kiến trúc",
+    "description": "Nhà cao tầng"
+  },
+  "nha-cap-4.svg": {
+    "name": "Nhà cấp 4",
+    "category": "Kiến trúc",
+    "description": "Nhà cấp 4"
+  },
+    "nha-gach.svg": {
+    "name": "Nhà gạch",
+    "category": "Kiến trúc",
+    "description": "Nhà gạch"
+  },
+    "qua-no-nghiep-vu.svg": {
+    "name": "Quả nổ nghiệp vụ",
+    "category": "Vũ khí",
+    "description": "Quả nổ nghiệp vụ"
+  },
+    "to-doi.svg": {
+    "name": "Quả nổ nghiệp vụ",
+    "category": "Tác chiến",
+    "description": "Quả nổ nghiệp vụ"
+  },
+    "xe-cho-quan.svg": {
+    "name": "Xe 4 bánh/chở quân",
+    "category": "Phương tiện",
+    "description": "Xe 4 bánh/chở quân"
+  },
+    "xe-cuu-thuong.svg": {
+    "name": "Xe cứu thương",
+    "category": "Phương tiện",
+    "description": "Xe cứu thương"
+  }
+}

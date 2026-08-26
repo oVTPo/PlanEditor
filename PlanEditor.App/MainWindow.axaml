@@ -1,0 +1,2216 @@
+<Window
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:PlanEditor.App.Controls"
+    xmlns:planning="using:PlanEditor.Core.Planning"
+    xmlns:project="using:PlanEditor.App.Project"
+        xmlns:symbols="using:PlanEditor.App.Symbols"
+        xmlns:colors="using:PlanEditor.App.Colors"
+        xmlns:printing="using:PlanEditor.App.Printing"
+    xmlns:ic="using:FluentIcons.Avalonia"
+    x:Class="PlanEditor.App.MainWindow"
+    Width="1440"
+    Height="900"
+    MinWidth="1100"
+    MinHeight="700"
+    Title="Phương án số">
+
+    <!--
+        macOS:
+        NativeMenu.Menu được đưa lên system menu bar,
+        ngay bên cạnh menu tên ứng dụng.
+
+        Windows/Linux:
+        NativeMenu không phải menu chính; menu chuẩn trong cửa sổ
+        được hiển thị ở Grid.Row=0 bên dưới.
+    -->
+    <NativeMenu.Menu>
+        <NativeMenu>
+
+            <NativeMenuItem Header="Tệp">
+                <NativeMenu>
+                    <NativeMenuItem
+                        Header="Dự án mới"
+                        Gesture="Meta+N"
+                        Click="OnNativeNewProjectClick"/>
+
+                    <NativeMenuItem
+                        Header="Mở dự án..."
+                        Gesture="Meta+O"
+                        Click="OnNativeOpenProjectClick"/>
+
+                    <NativeMenuItem
+                        Header="Mở thư mục dự án..."
+                        Click="OnNativeOpenProjectFolderClick"/>
+
+                    <NativeMenuItemSeparator/>
+
+                    <NativeMenuItem
+                        Header="Lưu"
+                        Gesture="Meta+S"
+                        Click="OnNativeSaveProjectClick"/>
+
+                    <NativeMenuItem
+                        Header="Lưu thành..."
+                        Gesture="Meta+Shift+S"
+                        Click="OnNativeSaveProjectAsClick"/>
+                </NativeMenu>
+            </NativeMenuItem>
+
+            <NativeMenuItem Header="Sửa">
+                <NativeMenu>
+                    <NativeMenuItem
+                        Header="Hoàn tác"
+                        Gesture="Meta+Z"
+                        Click="OnNativeUndoClick"/>
+
+                    <NativeMenuItem
+                        Header="Làm lại"
+                        Gesture="Meta+Shift+Z"
+                        Click="OnNativeRedoClick"/>
+
+                    <NativeMenuItemSeparator/>
+
+                    <NativeMenuItem
+                        Header="Xóa đối tượng đang chọn"
+                        Click="OnNativeDeletePlanningObjectClick"/>
+                </NativeMenu>
+            </NativeMenuItem>
+
+        </NativeMenu>
+    </NativeMenu.Menu>
+
+    <Window.Styles>
+
+        <!-- Icon tool button -->
+        <Style Selector="Button.tool">
+            <Setter Property="Width" Value="38"/>
+            <Setter Property="Height" Value="38"/>
+            <Setter Property="Padding" Value="8"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Foreground" Value="#30343B"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+
+        <Style Selector="Button.tool:pointerover">
+            <Setter Property="Background" Value="#E9EDF2"/>
+            <Setter Property="BorderBrush" Value="#D6DAE0"/>
+        </Style>
+
+        <Style Selector="Button.tool:pressed">
+            <Setter Property="Background" Value="#DDE5EE"/>
+        </Style>
+
+        <!-- Active drawing/edit tool -->
+        <Style Selector="Button.tool.active">
+            <Setter Property="Background" Value="#E3ECF7"/>
+            <Setter Property="BorderBrush" Value="#8FB0D1"/>
+            <Setter Property="Foreground" Value="#245A8D"/>
+        </Style>
+
+        <Style Selector="Button.tool.active:pointerover">
+            <Setter Property="Background" Value="#D8E7F5"/>
+            <Setter Property="BorderBrush" Value="#7EA4C9"/>
+        </Style>
+
+        <!-- Text mode button -->
+        <Style Selector="Button.mode">
+            <Setter Property="Height" Value="34"/>
+            <Setter Property="Padding" Value="12,5"/>
+            <Setter Property="Background" Value="#FFFFFF"/>
+            <Setter Property="Foreground" Value="#30343B"/>
+            <Setter Property="BorderBrush" Value="#D4D8DD"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="5"/>
+        </Style>
+
+        <Style Selector="Button.mode:pointerover">
+            <Setter Property="Background" Value="#F1F3F5"/>
+        </Style>
+
+        <!-- Compact icon-only buttons for Screen / Print toolbar -->
+        <Style Selector="Button.modeIcon">
+            <Setter Property="Width" Value="34"/>
+            <Setter Property="Height" Value="34"/>
+            <Setter Property="Padding" Value="6"/>
+            <Setter Property="Background" Value="#FFFFFF"/>
+            <Setter Property="Foreground" Value="#30343B"/>
+            <Setter Property="BorderBrush" Value="#D4D8DD"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="5"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+
+        <Style Selector="Button.modeIcon:pointerover">
+            <Setter Property="Background" Value="#F1F3F5"/>
+            <Setter Property="BorderBrush" Value="#BCC3CC"/>
+        </Style>
+
+        <Style Selector="Button.modeIcon:pressed">
+            <Setter Property="Background" Value="#E5EAF0"/>
+        </Style>
+
+    </Window.Styles>
+
+    <Grid
+        RowDefinitions="Auto,54,*,28"
+        ColumnDefinitions="270,*,290">
+
+        <!-- ========================================================= -->
+        <!-- WINDOWS / LINUX MENU BAR                                  -->
+        <!-- macOS dùng NativeMenu ở system menu bar nên menu này ẩn. -->
+        <!-- ========================================================= -->
+        <Menu
+            Grid.Row="0"
+            Grid.ColumnSpan="3"
+            IsVisible="{OnPlatform Default=True, macOS=False}"
+            Background="#F7F8FA"
+            BorderBrush="#D6D9DE"
+            BorderThickness="0,0,0,1">
+
+            <MenuItem Header="_Tệp">
+                <MenuItem
+                    Header="Dự án mới"
+                    InputGesture="Ctrl+N"
+                    Click="OnNewProjectClick"/>
+
+                <MenuItem
+                    Header="Mở dự án..."
+                    InputGesture="Ctrl+O"
+                    Click="OnOpenProjectClick"/>
+
+                <MenuItem
+                    Header="Mở thư mục dự án..."
+                    Click="OnOpenProjectFolderClick"/>
+
+                <Separator/>
+
+                <MenuItem
+                    Header="Lưu"
+                    InputGesture="Ctrl+S"
+                    Click="OnSaveProjectClick"/>
+
+                <MenuItem
+                    Header="Lưu thành..."
+                    InputGesture="Ctrl+Shift+S"
+                    Click="OnSaveProjectAsClick"/>
+            </MenuItem>
+
+            <MenuItem Header="_Sửa">
+                <MenuItem
+                    x:Name="UndoMenuItem"
+                    Header="Hoàn tác"
+                    InputGesture="Ctrl+Z"
+                    Click="OnUndoClick"
+                    IsEnabled="False"/>
+
+                <MenuItem
+                    x:Name="RedoMenuItem"
+                    Header="Làm lại"
+                    InputGesture="Ctrl+Y"
+                    Click="OnRedoClick"
+                    IsEnabled="False"/>
+
+                <Separator/>
+
+                <MenuItem
+                    Header="Xóa đối tượng đang chọn"
+                    Click="OnDeletePlanningObjectClick"/>
+            </MenuItem>
+        </Menu>
+
+        <!-- ========================================================= -->
+        <!-- TOP HORIZONTAL TOOLBAR                                      -->
+        <!-- ========================================================= -->
+        <Border
+            Grid.Row="1"
+            Grid.ColumnSpan="3"
+            Background="#F7F8FA"
+            BorderBrush="#D6D9DE"
+            BorderThickness="0,0,0,1">
+
+            <Grid
+                ColumnDefinitions="270,*,Auto"
+                Margin="0">
+
+                <!-- App / project zone -->
+                <Border
+                    Grid.Column="0"
+                    BorderBrush="#D6D9DE"
+                    BorderThickness="0,0,1,0">
+
+                    <StackPanel
+                        Orientation="Horizontal"
+                        VerticalAlignment="Center"
+                        Margin="14,0"
+                        Spacing="8">
+                        <StackPanel
+                            Orientation="Horizontal"
+                            VerticalAlignment="Center"
+                            Spacing="8"
+                            Margin="12,0">
+                                <Image
+                                    Width="64"
+                                    Height="64"
+                                    Source="{SvgImage /Assets/Brand/pas-logo.svg}"
+                                    Stretch="Uniform"/>
+
+                            <TextBlock
+                                Text="beta"
+                                FontSize="10"
+                                Foreground="#7A8088"
+                                VerticalAlignment="Center"/>
+
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Main tools -->
+                <StackPanel
+                    Grid.Column="1"
+                    Orientation="Horizontal"
+                    VerticalAlignment="Center"
+                    Margin="12,0"
+                    Spacing="4">
+
+                    <!-- SELECT -->
+                    <Button
+                        x:Name="SelectToolButton"
+                        Classes="tool"
+                        Click="OnSelectToolClick"
+                        ToolTip.Tip="Chọn đối tượng / quét khối (V)">
+                        <ic:FluentIcon
+                            Icon="Cursor"
+                            IconVariant="Regular"
+                            IconSize="Size20"
+                            Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+</Button>
+
+                    <!-- GROUP MOVE / TRANSLATE SELECTION -->
+                    <Button
+                        x:Name="GroupMoveToolButton"
+                        Classes="tool"
+                        Click="OnGroupMoveToolClick"
+                        ToolTip.Tip="Di chuyển toàn bộ khối đang chọn (A)">
+                       <ic:FluentIcon
+                            Icon="ArrowMove"
+                            IconVariant="Regular"
+                            IconSize="Size20"
+                            Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                    </Button>
+
+                    <!-- HAND / PAN -->
+                    <Button
+                        x:Name="HandToolButton"
+                        Classes="tool"
+                        Click="OnHandToolClick"
+                        ToolTip.Tip="Di chuyển bản đồ (H)">
+                        <ic:FluentIcon
+                            Icon="HandLeft"
+                            IconVariant="Regular"
+                            IconSize="Size20"
+                            Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                    </Button>
+
+                    <Border
+                        Width="1"
+                        Height="24"
+                        Background="#D5D9DE"
+                        Margin="5,0"/>
+                    <!-- LINE -->
+                    <Button
+                        x:Name="LineToolButton"
+                        Classes="tool"
+                        Click="OnLineToolClick"
+                        ToolTip.Tip="Vẽ đường phương án (L)">
+                        <ic:FluentIcon
+                            Icon="Line"
+                            IconVariant="Regular"
+                            IconSize="Size20"
+                            Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                    </Button>
+
+                    <!-- ARROW -->
+                    <Button
+                        x:Name="ArrowToolButton"
+                        Classes="tool"
+                        Click="OnArrowToolClick"
+                        ToolTip.Tip="Vẽ mũi tên (M)">
+
+                        <ic:FluentIcon
+                            Icon="ArrowFlowDiagonalUpRight"
+                            IconVariant="Regular"
+                            IconSize="Size20"
+                            Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                    </Button>
+
+                    <!-- AREA -->
+                    <Button
+                        x:Name="AreaToolButton"
+                        Classes="tool"
+                        Click="OnAreaToolClick"
+                        ToolTip.Tip="Vẽ vùng phương án (R)">
+
+                        <ic:FluentIcon
+                            Icon="Edit"
+                            IconVariant="Regular"
+                            IconSize="Size20"
+                            Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                    </Button>
+
+                    <!-- TEXT -->
+                    <Button
+                        x:Name="TextToolButton"
+                        Classes="tool"
+                        Click="OnTextToolClick"
+                        ToolTip.Tip="Văn bản — click lên bản đồ để nhập (T)">
+
+                        <TextBlock
+                            Text="T"
+                            FontSize="17"
+                            FontWeight="SemiBold"
+                            Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"/>
+                    </Button>
+
+                    <Border
+                        Width="1"
+                        Height="24"
+                        Background="#D5D9DE"
+                        Margin="5,0"/>
+
+                    <!-- UNDO -->
+                    <Button
+                        x:Name="UndoToolbarButton"
+                        Classes="tool"
+                        Click="OnUndoClick"
+                        IsEnabled="False"
+                        ToolTip.Tip="Hoàn tác  •  ⌘/Ctrl + Z">
+                        <ic:FluentIcon
+                            Icon="ArrowUndo"
+                            IconVariant="Regular"
+                            IconSize="Size20"
+                            Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+</Button>
+
+                    <!-- REDO -->
+                    <Button
+                        x:Name="RedoToolbarButton"
+                        Classes="tool"
+                        Click="OnRedoClick"
+                        IsEnabled="False"
+                        ToolTip.Tip="Làm lại  •  ⇧⌘Z / Ctrl + Y">
+                        <ic:FluentIcon
+                            Icon="ArrowRedo"
+                            IconVariant="Regular"
+                            IconSize="Size20"
+                            Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+</Button>
+
+                    <Border
+                        Width="1"
+                        Height="24"
+                        Background="#D5D9DE"
+                        Margin="5,0"/>
+
+                    <!-- DELETE -->
+                    <Button
+                        x:Name="DeleteToolButton"
+                        Classes="tool"
+                        Click="OnDeletePlanningObjectClick"
+                        ToolTip.Tip="Xóa đối tượng đang chọn">
+                        <ic:FluentIcon
+                            Icon="Delete"
+                            IconVariant="Regular"
+                            IconSize="Size20"
+                            Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+</Button>
+
+                </StackPanel>
+
+                <!-- Display / Print preview modes -->
+                <StackPanel
+                    Grid.Column="2"
+                    Orientation="Horizontal"
+                    VerticalAlignment="Center"
+                    Margin="0,0,12,0"
+                    Spacing="7">
+
+                    <!-- Screen mode -->
+                    <Button
+                        x:Name="ScreenModeButton"
+                        Classes="modeIcon"
+                        Click="OnScreenModeClick"
+                        ToolTip.Tip="Chế độ biên tập trên màn hình">
+                        <ic:FluentIcon
+                            Icon="Desktop"
+                            IconVariant="Regular"
+                            IconSize="Size20"
+                            Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                    </Button>
+
+                    <!-- Print preview mode -->
+                    <Button
+                        x:Name="PrintModeButton"
+                        Classes="modeIcon"
+                        Click="OnPrintModeClick"
+                        ToolTip.Tip="Chế độ in / xem trước trang giấy">
+                        <ic:FluentIcon
+                            Icon="Document"
+                            IconVariant="Regular"
+                            IconSize="Size20"
+                            Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                    </Button>
+
+                    <StackPanel
+                        x:Name="PrintPreviewToolbar"
+                        IsVisible="False"
+                        Orientation="Horizontal"
+                        VerticalAlignment="Center"
+                        Spacing="6">
+
+                        <Border
+                            Width="1"
+                            Height="26"
+                            Background="#D5D9DE"
+                            Margin="2,0,4,0"/>
+
+                        <ComboBox
+                            x:Name="PrintPaperSizeComboBox"
+                            Width="92"
+                            SelectedIndex="3"
+                            SelectionChanged="OnPrintPaperSizeChanged"
+                            ToolTip.Tip="Khổ giấy">
+                            <ComboBoxItem Content="A0"/>
+                            <ComboBoxItem Content="A1"/>
+                            <ComboBoxItem Content="A2"/>
+                            <ComboBoxItem Content="A3"/>
+                            <ComboBoxItem Content="A4"/>
+                        </ComboBox>
+
+                        <ComboBox
+                            x:Name="PrintOrientationComboBox"
+                            Width="88"
+                            SelectedIndex="1"
+                            SelectionChanged="OnPrintOrientationChanged"
+                            ToolTip.Tip="Hướng giấy">
+                            <ComboBoxItem Content="Dọc"/>
+                            <ComboBoxItem Content="Ngang"/>
+                        </ComboBox>
+
+                        <TextBlock
+                            x:Name="PrintPageInfoText"
+                            Width="122"
+                            Text="A3 • 420 × 297 mm"
+                            FontSize="10"
+                            Foreground="#60656B"
+                            VerticalAlignment="Center"
+                            TextAlignment="Center"/>
+
+                        <!-- Fit planning into fixed print map region -->
+                        <Button
+                            Classes="modeIcon"
+                            Click="OnFitPlanningToPrintRegionClick"
+                            ToolTip.Tip="Vừa vùng in">
+                            <ic:FluentIcon
+                                Icon="ArrowExpand"
+                                IconVariant="Regular"
+                                IconSize="Size20"
+                                Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                        </Button>
+
+                        <!-- Export DOCX -->
+                        <Button
+                            Classes="modeIcon"
+                            Click="OnExportPrintDocxClick"
+                            ToolTip.Tip="Xuất DOCX">
+                            <ic:FluentIcon
+                                Icon="DocumentArrowDown"
+                                IconVariant="Regular"
+                                IconSize="Size20"
+                                Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                        </Button>
+
+                        <!-- Open generated document for printing -->
+                        <Button
+                            Classes="modeIcon"
+                            Click="OnExecutePrintClick"
+                            ToolTip.Tip="Mở để in">
+                            <ic:FluentIcon
+                                Icon="Print"
+                                IconVariant="Regular"
+                                IconSize="Size20"
+                                Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                        </Button>
+
+                        <!-- Exit print preview -->
+                        <Button
+                            Classes="modeIcon"
+                            Click="OnExitPrintModeClick"
+                            ToolTip.Tip="Thoát chế độ in">
+                            <ic:FluentIcon
+                                Icon="Dismiss"
+                                IconVariant="Regular"
+                                IconSize="Size20"
+                                Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                        </Button>
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ========================================================= -->
+        <!-- LEFT: REAL FOLDER EXPLORER                                 -->
+        <!-- Chỉ hiện folder + file *.pas                               -->
+        <!-- ========================================================= -->
+        <Border
+            Grid.Row="2"
+            Grid.Column="0"
+            Background="#F7F7F7"
+            BorderBrush="#C9CDD2"
+            BorderThickness="0,0,1,0">
+
+            <Grid RowDefinitions="34,32,*">
+
+                <!-- Header giống file explorer -->
+                <Border
+                    Grid.Row="0"
+                    Background="#EFEFEF"
+                    BorderBrush="#C9CDD2"
+                    BorderThickness="0,0,0,1">
+
+                    <Grid ColumnDefinitions="Auto,*,Auto">
+
+                        <Border
+                            Grid.Column="0"
+                            Background="#F7F7F7"
+                            BorderBrush="#C9CDD2"
+                            BorderThickness="0,0,1,0"
+                            Padding="10,0">
+
+                            <TextBlock
+                                Text="Project"
+                                FontSize="11"
+                                FontWeight="SemiBold"
+                                Foreground="#3F4348"
+                                VerticalAlignment="Center"/>
+                        </Border>
+
+                        <TextBlock
+                            x:Name="ProjectExplorerFolderText"
+                            Grid.Column="1"
+                            Margin="9,0,6,0"
+                            Text="Chưa mở thư mục"
+                            FontSize="9.5"
+                            Foreground="#777C82"
+                            VerticalAlignment="Center"
+                            TextTrimming="CharacterEllipsis"/>
+
+                        <StackPanel
+                            Grid.Column="2"
+                            Orientation="Horizontal"
+                            VerticalAlignment="Center"
+                            Margin="0,0,5,0"
+                            Spacing="2">
+
+                            <!-- Open folder -->
+                            <Button
+                                x:Name="OpenProjectFolderToolbarButton"
+                                Classes="tool"
+                                Width="25"
+                                Height="25"
+                                Padding="4"
+                                Click="OnOpenProjectFolderClick"
+                                ToolTip.Tip="Mở thư mục dự án">
+                                <ic:FluentIcon
+                                    Icon="FolderOpen"
+                                    IconVariant="Regular"
+                                    IconSize="Size16"
+                                    Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+</Button>
+
+                            <!-- Refresh -->
+                            <Button
+                                x:Name="RefreshProjectFolderToolbarButton"
+                                Classes="tool"
+                                Width="25"
+                                Height="25"
+                                Padding="4"
+                                Click="OnRefreshProjectFolderClick"
+                                ToolTip.Tip="Làm mới">
+                                <ic:FluentIcon
+                                    Icon="ArrowClockwise"
+                                    IconVariant="Regular"
+                                    IconSize="Size16"
+                                    Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+</Button>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Filter explanation -->
+                <Border
+                    Grid.Row="1"
+                    Background="#FAFAFA"
+                    BorderBrush="#E1E3E5"
+                    BorderThickness="0,0,0,1">
+
+                    <Grid ColumnDefinitions="Auto,*"
+                          Margin="8,0">
+
+                        <PathIcon
+                            Grid.Column="0"
+                            Width="11"
+                            Height="11"
+                            Margin="0,0,6,0"
+                            Foreground="#81868B"
+                            VerticalAlignment="Center"
+                            Data="M3,4 L21,4 L14,12 L14,20 L10,18 L10,12 Z"/>
+
+                        <TextBlock
+                            Grid.Column="1"
+                            Text="Chỉ hiển thị file dự án .pas"
+                            FontSize="9.5"
+                            Foreground="#7D8287"
+                            VerticalAlignment="Center"/>
+                    </Grid>
+                </Border>
+
+                <!-- Empty state -->
+                <StackPanel
+                    x:Name="ProjectExplorerEmptyText"
+                    Grid.Row="2"
+                    Margin="18,26"
+                    HorizontalAlignment="Center"
+                    Spacing="8">
+
+                    <PathIcon
+                        Width="30"
+                        Height="30"
+                        Foreground="#A1A5AA"
+                        Data="M2,6 L8,6 L10,8 L22,8 L22,20 L2,20 Z"/>
+
+                    <TextBlock
+                        Text="Chưa mở thư mục"
+                        FontSize="11"
+                        Foreground="#666B70"
+                        HorizontalAlignment="Center"/>
+
+                    <TextBlock
+                        Width="190"
+                        Text="Chọn một thư mục trên máy. Project Explorer hiển thị toàn bộ thư mục con và các file dự án .pas."
+                        FontSize="9.5"
+                        TextWrapping="Wrap"
+                        TextAlignment="Center"
+                        Foreground="#8A8F94"/>
+
+                    <Button
+                        Content="Mở thư mục"
+                        HorizontalAlignment="Center"
+                        Click="OnOpenProjectFolderClick"/>
+                </StackPanel>
+
+                <!-- Real file tree -->
+                <TreeView
+                    x:Name="ProjectFileTree"
+                    Grid.Row="2"
+                    Margin="3,2,3,8"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    IsVisible="False"
+                    DoubleTapped="OnProjectExplorerDoubleTapped">
+
+                    <TreeView.DataTemplates>
+
+                        <!-- Folder -->
+                        <TreeDataTemplate
+                            DataType="project:ProjectFolderNode"
+                            ItemsSource="{Binding Children}">
+
+                            <Grid
+                                ColumnDefinitions="18,*"
+                                Height="25"
+                                Width="{Binding Bounds.Width, ElementName=ProjectFileTree}"
+                                Background="Transparent"
+                                PointerPressed="OnProjectExplorerNodePointerPressed">
+
+                                <Grid.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem
+                                            Header="Dự án mới tại đây"
+                                            Click="OnExplorerNewProjectClick"/>
+
+                                        <MenuItem
+                                            Header="Thư mục mới"
+                                            Click="OnExplorerNewFolderClick"/>
+
+                                        <Separator/>
+
+                                        <MenuItem
+                                            Header="Đổi tên"
+                                            Click="OnExplorerRenameClick"/>
+
+                                        <MenuItem
+                                            Header="Xóa"
+                                            Click="OnExplorerDeleteClick"/>
+                                    </ContextMenu>
+                                </Grid.ContextMenu>
+
+                                <PathIcon
+                                    Grid.Column="0"
+                                    Width="14"
+                                    Height="14"
+                                    Foreground="#527A9B"
+                                    VerticalAlignment="Center"
+                                    Data="M2,6 L8,6 L10,8 L22,8 L22,20 L2,20 Z"/>
+
+                                <TextBlock
+                                    Grid.Column="1"
+                                    Margin="4,0,0,0"
+                                    Text="{Binding Name}"
+                                    FontSize="10.5"
+                                    FontWeight="SemiBold"
+                                    Foreground="#484D52"
+                                    VerticalAlignment="Center"
+                                    TextTrimming="CharacterEllipsis"/>
+                            </Grid>
+                        </TreeDataTemplate>
+
+                        <!-- .pas file -->
+                        <DataTemplate
+                            DataType="project:ProjectFileNode">
+
+                            <Grid
+                                ColumnDefinitions="18,*"
+                                Height="25"
+                                Width="{Binding Bounds.Width, ElementName=ProjectFileTree}"
+                                Background="Transparent"
+                                PointerPressed="OnProjectExplorerNodePointerPressed">
+
+                                <Grid.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem
+                                            Header="Mở dự án"
+                                            Click="OnExplorerOpenProjectClick"/>
+
+                                        <Separator/>
+
+                                        <MenuItem
+                                            Header="Đổi tên"
+                                            Click="OnExplorerRenameClick"/>
+
+                                        <MenuItem
+                                            Header="Xóa"
+                                            Click="OnExplorerDeleteClick"/>
+                                    </ContextMenu>
+                                </Grid.ContextMenu>
+
+                                <PathIcon
+                                    Grid.Column="0"
+                                    Width="13"
+                                    Height="13"
+                                    Foreground="#6C7278"
+                                    VerticalAlignment="Center"
+                                    Data="M5,2 L15,2 L20,7 L20,22 L5,22 Z M14,2 L14,8 L20,8"/>
+
+                                <TextBlock
+                                    Grid.Column="1"
+                                    Margin="4,0,0,0"
+                                    Text="{Binding Name}"
+                                    FontSize="10.5"
+                                    Foreground="#44494E"
+                                    VerticalAlignment="Center"
+                                    TextTrimming="CharacterEllipsis"/>
+                            </Grid>
+                        </DataTemplate>
+
+                    </TreeView.DataTemplates>
+                </TreeView>
+
+            </Grid>
+        </Border>
+
+        <!-- ========================================================= -->
+        <!-- CENTER: MAP                                                -->
+        <!-- ========================================================= -->
+        <Grid
+            Grid.Row="2"
+            Grid.Column="1"
+            RowDefinitions="Auto,*"
+            Background="#E5E5E5">
+
+            <!-- ===================================================== -->
+            <!-- ===================================================== -->
+            <!-- OBJECT PALETTE — nhóm ký hiệu                         -->
+            <!-- ===================================================== -->
+            <Border
+                Grid.Row="0"
+                Background="#F7F8FA"
+                BorderBrush="#C9CDD2"
+                BorderThickness="0,1,0,1"
+                Padding="10,6">
+
+                <StackPanel
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Left"
+                    VerticalAlignment="Center"
+                    Spacing="6">
+
+                    <!-- TACTICAL ATTACK -->
+                    <Button
+                        x:Name="TacticalAttackToolButton"
+                        Classes="tool"
+                        Click="OnTacticalAttackToolClick"
+                        ToolTip.Tip="Đường tác chiến — click nhiều điểm; Enter/double-click kết thúc; Tiến công/Tập kích">
+                        <Grid Width="22" Height="22">
+                            <Path
+                                Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                StrokeThickness="2.2"
+                                StrokeLineCap="Round"
+                                Data="M11,2 L11,12 M5,9 L11,19 L17,9 M7,9 L11,14 L15,9"/>
+                        </Grid>
+                    </Button>
+
+                    <!-- CIRCLE -->
+                    <Button
+                        x:Name="CircleToolButton"
+                        Classes="tool"
+                        Click="OnCircleToolClick"
+                        ToolTip.Tip="Hình tròn chữ — click để đặt đối tượng, double-click để nhập chữ">
+                        <PathIcon
+                            Width="20"
+                            Height="20"
+                            Data="M12,3 A9,9 0 1 1 11.99,3 Z"/>
+                    </Button>
+
+                    <Border
+                        Width="1"
+                        Height="24"
+                        Margin="4,0"
+                        Background="#D2D5D9"/>
+
+                    <!-- SINGLE DOOR -->
+                    <Button
+                        x:Name="SingleDoorToolButton"
+                        Classes="tool"
+                        Click="OnSingleDoorToolClick"
+                        ToolTip.Tip="Cửa 1 cánh — click lên đường hoặc cạnh vùng để gắn">
+                        <Grid Width="22" Height="22">
+                            <Rectangle
+                                Width="6"
+                                Height="8"
+                                Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                HorizontalAlignment="Left"
+                                VerticalAlignment="Bottom"
+                                Margin="1,0,0,2"/>
+                            <Rectangle
+                                Width="6"
+                                Height="8"
+                                Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Bottom"
+                                Margin="0,0,1,2"/>
+                            <Path
+                                Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                StrokeThickness="3"
+                                StrokeLineCap="Square"
+                                Data="M7,14 L15,6"/>
+                        </Grid>
+                    </Button>
+
+                    <!-- DOUBLE DOOR -->
+                    <Button
+                        x:Name="DoubleDoorToolButton"
+                        Classes="tool"
+                        Click="OnDoubleDoorToolClick"
+                        ToolTip.Tip="Cửa 2 cánh — click lên đường hoặc cạnh vùng để gắn">
+                        <Grid Width="24" Height="22">
+                            <Rectangle
+                                Width="6"
+                                Height="8"
+                                Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                HorizontalAlignment="Left"
+                                VerticalAlignment="Bottom"/>
+                            <Rectangle
+                                Width="6"
+                                Height="8"
+                                Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Bottom"/>
+                            <Path
+                                Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                StrokeThickness="3"
+                                StrokeLineCap="Square"
+                                Data="M6,14 L11,7 M18,14 L13,7"/>
+                        </Grid>
+                    </Button>
+
+                    <Border
+                        Width="1"
+                        Height="24"
+                        Margin="4,0"
+                        Background="#D2D5D9"/>
+
+                    <Button
+                        x:Name="VegetationAreaToolButton"
+                        Classes="tool"
+                        Click="OnVegetationAreaToolClick"
+                        ToolTip.Tip="Vùng cây — Vườn cây / Rừng xanh hỗn hợp / Bãi rây-sậy">
+                        <PathIcon
+                            Width="20"
+                            Height="20"
+                            Data="M12,2 L17,9 L14,9 L19,15 L13,15 L13,22 L11,22 L11,15 L5,15 L10,9 L7,9 Z"/>
+                    </Button>
+
+                    <Button
+                        x:Name="WaterAreaToolButton"
+                        Classes="tool"
+                        Click="OnWaterAreaToolClick"
+                        ToolTip.Tip="Vùng nước">
+                        <PathIcon
+                            Width="20"
+                            Height="20"
+                            Data="M2,7 C5,4 8,10 11,7 C14,4 17,10 22,7 M2,12 C5,9 8,15 11,12 C14,9 17,15 22,12 M2,17 C5,14 8,20 11,17 C14,14 17,20 22,17"/>
+                    </Button>
+
+                    <Button
+                        x:Name="SandAreaToolButton"
+                        Classes="tool"
+                        Click="OnSandAreaToolClick"
+                        ToolTip.Tip="Vùng cát">
+                        <PathIcon
+                            Width="20"
+                            Height="20"
+                            Data="M2,17 L7,12 L12,16 L17,11 L22,16 M4,6 L4.2,6 M10,8 L10.2,8 M17,5 L17.2,5"/>
+                    </Button>
+
+                </StackPanel>
+            </Border>
+
+            <!-- MAP itself -->
+            <Grid
+                Grid.Row="1">
+
+                <controls:MapCanvas
+                    x:Name="MapCanvas"
+                    DragDrop.AllowDrop="True"
+                    DragDrop.DragOver="OnMapCanvasSymbolDragOver"
+                    DragDrop.Drop="OnMapCanvasSymbolDrop"/>
+
+                <!-- Search floats above the map only, not above object palette -->
+                <controls:SearchPanel
+                    x:Name="MapSearch"
+                    HorizontalAlignment="Left"
+                    VerticalAlignment="Top"
+                    Margin="18"/>
+
+                <!--
+                    Inline editor của Text Tool.
+                    Canvas cùng kích thước MapCanvas nên Left/Top dùng trực tiếp
+                    screen coordinate do TextTool gửi lên.
+                -->
+                <Canvas
+                    x:Name="TextEntryOverlay"
+                    IsHitTestVisible="False">
+
+                    <TextBox
+                        x:Name="InlineTextEditor"
+                        IsVisible="False"
+                        Width="220"
+                        MinHeight="30"
+                        Padding="6,3"
+                        FontSize="16"
+                        AcceptsReturn="False"
+                        PlaceholderText="Nhập văn bản..."
+                        KeyDown="OnInlineTextEditorKeyDown"
+                        LostFocus="OnInlineTextEditorLostFocus"/>
+
+                    <!--
+                        Editor riêng cho cột Chú thích trong Print Preview.
+                        Click trực tiếp vào ô chú thích để sửa.
+                    -->
+                    <Border
+                        x:Name="PrintLegendCaptionEditorHost"
+                        IsVisible="False"
+                        Background="White"
+                        BorderBrush="#AEB4BC"
+                        BorderThickness="1"
+                        CornerRadius="2">
+
+                        <TextBox
+                            x:Name="PrintLegendCaptionEditor"
+                            MinWidth="70"
+                            MinHeight="24"
+                            BorderThickness="0"
+                            Padding="4,2"
+                            FontSize="12"
+                            AcceptsReturn="False"
+                            PlaceholderText="Chú thích..."
+                            KeyDown="OnPrintLegendCaptionEditorKeyDown"
+                            LostFocus="OnPrintLegendCaptionEditorLostFocus"/>
+                    </Border>
+                </Canvas>
+
+            </Grid>
+        </Grid>
+
+        <!-- ========================================================= -->
+        <!-- RIGHT: PROPERTIES                                          -->
+        <!-- ========================================================= -->
+        <Border
+            Grid.Row="2"
+            Grid.Column="2"
+            Background="#F8F8F9"
+            BorderBrush="#D6D9DE"
+            BorderThickness="1,0,0,0">
+
+            <Grid
+                RowDefinitions="Auto,*,Auto,Auto">
+
+                <Border
+                    Grid.Row="0"
+                    Padding="14,12"
+                    BorderBrush="#DDE0E4"
+                    BorderThickness="0,0,0,1">
+
+                    <TextBlock
+                        Text="THUỘC TÍNH"
+                        FontSize="11"
+                        FontWeight="Bold"
+                        Foreground="#50555C"/>
+                </Border>
+
+                <ScrollViewer Grid.Row="1">
+                    <StackPanel Margin="14">
+
+                        <!-- Generic property summary for non-arrow objects -->
+                        <TextBlock
+                            x:Name="PlanningPropertyText"
+                            Text="Chưa chọn đối tượng"
+                            TextWrapping="Wrap"
+                            Foreground="#60656B"
+                            FontSize="12"/>
+
+                        <!-- ================================================= -->
+                        <!-- SHAPE STYLE: LINE / AREA / ARROW                   -->
+                        <!-- ================================================= -->
+                        <StackPanel
+                            x:Name="ShapeStylePropertyPanel"
+                            IsVisible="False"
+                            Spacing="12">
+
+                            <TextBlock
+                                x:Name="ShapeStyleTitleText"
+                                Text="KIỂU HIỂN THỊ"
+                                FontSize="10"
+                                FontWeight="Bold"
+                                Foreground="#777D84"/>
+
+                            <Border Height="1" Background="#E0E2E5"/>
+
+                            <Grid ColumnDefinitions="92,*">
+                                <TextBlock
+                                    Text="Stroke"
+                                    FontSize="11"
+                                    Foreground="#5F656C"
+                                    VerticalAlignment="Center"/>
+
+                                <CheckBox
+                                    x:Name="ShapeStrokeVisibleCheckBox"
+                                    Grid.Column="1"
+                                    Content="Hiện"
+                                    IsCheckedChanged="OnShapeStrokeVisibleChanged"/>
+                            </Grid>
+
+                            
+                                <StackPanel
+                                    x:Name="StrokeColorPropertySection"
+                                    Spacing="7">
+
+                                    <TextBlock
+                                        Text="Màu stroke"
+                                        FontSize="11"
+                                        Foreground="#5F656C"/>
+
+                                    <!--
+                                        Palette thực tế được tạo trong code-behind.
+                                        WrapPanel không có Width cố định:
+                                        số cột tự thay đổi theo bề rộng Property panel.
+                                    -->
+                                    <WrapPanel
+                                        x:Name="StrokeColorPalettePanel"
+                                        Orientation="Horizontal"
+                                        HorizontalAlignment="Stretch"/>
+
+                                    <!-- + mở editor này -->
+                                    <Border
+                                        x:Name="StrokeCustomColorEditorPanel"
+                                        IsVisible="False"
+                                        Padding="8"
+                                        Margin="0,2,0,0"
+                                        CornerRadius="5"
+                                        BorderBrush="#D3D7DC"
+                                        BorderThickness="1"
+                                        Background="#F2F3F5">
+
+                                        <Grid
+                                            ColumnDefinitions="*,Auto"
+                                            ColumnSpacing="6">
+
+                                            <TextBox
+                                                x:Name="StrokeCustomColorInput"
+                                                PlaceholderText="#RRGGBB"
+                                                Text="#2C97C9"/>
+
+                                            <Button
+                                                Grid.Column="1"
+                                                MinWidth="52"
+                                                Padding="8,4"
+                                                Content="Thêm"
+                                                Click="OnConfirmAddStrokeColorClick"/>
+                                        </Grid>
+                                    </Border>
+
+                                    <!--
+                                        Legacy named controls:
+                                        code cũ vẫn tham chiếu tới các control này.
+                                        Giữ trong visual tree nhưng không hiển thị.
+                                    -->
+                                    <Border
+                                        x:Name="ShapeStrokeColorSwatch"
+                                        IsVisible="False"
+                                        Width="1"
+                                        Height="1"/>
+
+                                    <ComboBox
+                                        x:Name="ShapeStrokeColorComboBox"
+                                        IsVisible="False"
+                                        SelectionChanged="OnShapeStrokeColorSelectionChanged"/>
+
+                                    <TextBox
+                                        x:Name="ShapeStrokeColorEditor"
+                                        IsVisible="False"
+                                        TextChanged="OnShapeStrokeColorChanged"/>
+                                </StackPanel>
+
+
+                            <Grid ColumnDefinitions="92,*">
+                                <TextBlock
+                                    Text="Kiểu nét"
+                                    FontSize="11"
+                                    Foreground="#5F656C"
+                                    VerticalAlignment="Center"/>
+
+                                <ComboBox
+                                    x:Name="ShapeStrokePatternComboBox"
+                                    Grid.Column="1"
+                                    SelectionChanged="OnShapeStrokePatternChanged">
+                                    <ComboBoxItem Content="Liền"/>
+                                    <ComboBoxItem Content="Đứt đoạn"/>
+                                    <ComboBoxItem Content="Chấm"/>
+                                </ComboBox>
+                            </Grid>
+
+                            <Grid ColumnDefinitions="92,*">
+                                <TextBlock
+                                    Text="Độ dày"
+                                    FontSize="11"
+                                    Foreground="#5F656C"
+                                    VerticalAlignment="Center"/>
+
+                                <NumericUpDown
+                                    x:Name="ShapeStrokeWidthEditor"
+                                    Grid.Column="1"
+                                    Minimum="0.5"
+                                    Maximum="30"
+                                    Increment="0.5"
+                                    FormatString="0.#"
+                                    ValueChanged="OnShapeStrokeWidthChanged"/>
+                            </Grid>
+
+                            <StackPanel
+                                x:Name="AreaFillPropertyPanel"
+                                IsVisible="False"
+                                Spacing="12">
+
+                                <Grid
+                                    x:Name="AreaCurvePropertyRow"
+                                    ColumnDefinitions="92,*"
+                                    Margin="0,0,0,10">
+
+                                    <TextBlock
+                                        Text="Đường cong"
+                                        FontSize="11"
+                                        Foreground="#5F656C"
+                                        VerticalAlignment="Center"/>
+
+                                    <StackPanel
+                                        Grid.Column="1"
+                                        Orientation="Horizontal"
+                                        Spacing="6">
+
+                                        <ToggleButton
+                                            x:Name="AreaStraightToggle"
+                                            Content="Thẳng"
+                                            MinWidth="72"
+                                            IsChecked="True"
+                                            Click="OnAreaStraightClick"/>
+
+                                        <ToggleButton
+                                            x:Name="AreaBezierToggle"
+                                            Content="Bézier"
+                                            MinWidth="72"
+                                            Click="OnAreaBezierClick"/>
+                                    </StackPanel>
+                                </Grid>
+
+
+                                <Border Height="1" Background="#E0E2E5"/>
+
+                                <Grid ColumnDefinitions="92,*">
+                                    <TextBlock
+                                        Text="Fill"
+                                        FontSize="11"
+                                        Foreground="#5F656C"
+                                        VerticalAlignment="Center"/>
+
+                                    <CheckBox
+                                        x:Name="AreaFillVisibleCheckBox"
+                                        Grid.Column="1"
+                                        Content="Hiện"
+                                        IsCheckedChanged="OnAreaFillVisibleChanged"/>
+                                </Grid>
+
+                                
+                                <StackPanel
+                                    x:Name="FillColorPropertySection"
+                                    Spacing="7">
+
+                                    <TextBlock
+                                        Text="Màu fill"
+                                        FontSize="11"
+                                        Foreground="#5F656C"/>
+
+                                    <WrapPanel
+                                        x:Name="FillColorPalettePanel"
+                                        Orientation="Horizontal"
+                                        HorizontalAlignment="Stretch"/>
+
+                                    <Border
+                                        x:Name="FillCustomColorEditorPanel"
+                                        IsVisible="False"
+                                        Padding="8"
+                                        Margin="0,2,0,0"
+                                        CornerRadius="5"
+                                        BorderBrush="#D3D7DC"
+                                        BorderThickness="1"
+                                        Background="#F2F3F5">
+
+                                        <Grid
+                                            ColumnDefinitions="*,Auto"
+                                            ColumnSpacing="6">
+
+                                            <TextBox
+                                                x:Name="FillCustomColorInput"
+                                                PlaceholderText="#RRGGBB"
+                                                Text="#2C97C9"/>
+
+                                            <Button
+                                                Grid.Column="1"
+                                                MinWidth="52"
+                                                Padding="8,4"
+                                                Content="Thêm"
+                                                Click="OnConfirmAddFillColorClick"/>
+                                        </Grid>
+                                    </Border>
+
+                                    <Border
+                                        x:Name="AreaFillColorSwatch"
+                                        IsVisible="False"
+                                        Width="1"
+                                        Height="1"/>
+
+                                    <ComboBox
+                                        x:Name="AreaFillColorComboBox"
+                                        IsVisible="False"
+                                        SelectionChanged="OnAreaFillColorSelectionChanged"/>
+
+                                    <TextBox
+                                        x:Name="AreaFillColorEditor"
+                                        IsVisible="False"
+                                        TextChanged="OnAreaFillColorChanged"/>
+                                </StackPanel>
+
+
+                                <Grid ColumnDefinitions="92,*">
+                                    <TextBlock
+                                        Text="Pattern"
+                                        FontSize="11"
+                                        Foreground="#5F656C"
+                                        VerticalAlignment="Center"/>
+
+                                    <ComboBox
+                                        x:Name="AreaFillPatternComboBox"
+                                        Grid.Column="1"
+                                        SelectionChanged="OnAreaFillPatternChanged">
+                                        <ComboBoxItem Content="Solid"/>
+                                        <ComboBoxItem Content="Gạch chéo"/>
+                                        <ComboBoxItem Content="Gạch chéo kép"/>
+                                        <ComboBoxItem Content="Chấm"/>
+                                        <ComboBoxItem Content="Vườn cây"/>
+                                        <ComboBoxItem Content="Rừng xanh hỗn hợp"/>
+                                        <ComboBoxItem Content="Bãi rây / sậy"/>
+                                        <ComboBoxItem Content="Nước — sóng"/>
+                                        <ComboBoxItem Content="Nước — gợn"/>
+                                        <ComboBoxItem Content="Cát — hạt"/>
+                                        <ComboBoxItem Content="Cát — đụn"/>
+                                    </ComboBox>
+                                </Grid>
+
+                                <Grid ColumnDefinitions="92,*">
+                                    <TextBlock
+                                        Text="Opacity"
+                                        FontSize="11"
+                                        Foreground="#5F656C"
+                                        VerticalAlignment="Center"/>
+
+                                    <NumericUpDown
+                                        x:Name="AreaFillOpacityEditor"
+                                        Grid.Column="1"
+                                        Minimum="0"
+                                        Maximum="100"
+                                        Increment="5"
+                                        FormatString="0"
+                                        ValueChanged="OnAreaFillOpacityChanged"/>
+                                </Grid>
+
+                                <StackPanel Spacing="5">
+                                    <TextBlock
+                                        Text="Nhãn vùng"
+                                        FontSize="11"
+                                        Foreground="#5F656C"/>
+
+                                    <TextBox
+                                        x:Name="AreaLabelEditor"
+                                        PlaceholderText="Double-click vùng để nhập trực tiếp..."
+                                        TextChanged="OnAreaLabelChanged"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- ================================================= -->
+                        <!-- ARROW PROPERTY INSPECTOR                           -->
+                        <!-- ================================================= -->
+                        <StackPanel
+                            x:Name="ArrowPropertyPanel"
+                            IsVisible="False"
+                            Spacing="12">
+
+                            <StackPanel Spacing="2">
+                                <TextBlock
+                                    Text="MŨI TÊN"
+                                    FontSize="10"
+                                    FontWeight="Bold"
+                                    Foreground="#777D84"/>
+
+                                <TextBlock
+                                    x:Name="ArrowPropertyNameText"
+                                    Text="Mũi tên"
+                                    FontSize="13"
+                                    FontWeight="SemiBold"
+                                    Foreground="#33383E"/>
+                            </StackPanel>
+
+                            <Border
+                                Height="1"
+                                Background="#E0E2E5"/>
+
+                            <Grid
+                                x:Name="TacticalAttackModePanel"
+                                IsVisible="False"
+                                ColumnDefinitions="92,*">
+                                <TextBlock
+                                    Text="Tác chiến"
+                                    FontSize="11"
+                                    Foreground="#5F656C"
+                                    VerticalAlignment="Center"/>
+
+                                <ComboBox
+                                    x:Name="TacticalAttackModeComboBox"
+                                    Grid.Column="1"
+                                    SelectionChanged="OnTacticalAttackModeChanged">
+                                    <ComboBoxItem Content="Tiến công"/>
+                                    <ComboBoxItem Content="Tập kích"/>
+                                </ComboBox>
+                            </Grid>
+
+                            <!-- Stroke type -->
+                                                        <Grid
+                                ColumnDefinitions="92,*"
+                                RowDefinitions="Auto"
+                                Margin="0,2,0,0">
+                                <TextBlock
+                                    Grid.Column="0"
+                                    Text="Kiểu nét"
+                                    FontSize="11"
+                                    Foreground="#5F656C"
+                                    VerticalAlignment="Center"/>
+                                <StackPanel Grid.Column="1" x:Name="ArrowPatternVisualPanel" Orientation="Horizontal" Spacing="6">
+                                <Button
+                                    Width="48"
+                                    Height="30"
+                                    Padding="4"
+                                    Tag="solid"
+                                    ToolTip.Tip="Nét liền"
+                                    Click="OnArrowPatternVisualClick">
+                                    <Canvas Width="34" Height="18">
+                                        <Line
+                                            StartPoint="2,9"
+                                            EndPoint="32,9"
+                                            Stroke="#444A50"
+                                            StrokeThickness="2"/>
+                                    </Canvas>
+                                </Button>
+
+                                <Button
+                                    Width="48"
+                                    Height="30"
+                                    Padding="4"
+                                    Tag="dash"
+                                    ToolTip.Tip="Nét đứt"
+                                    Click="OnArrowPatternVisualClick">
+                                    <Canvas Width="34" Height="18">
+                                        <Line
+                                            StartPoint="2,9"
+                                            EndPoint="32,9"
+                                            Stroke="#444A50"
+                                            StrokeThickness="2"
+                                            StrokeDashArray="5,3"/>
+                                    </Canvas>
+                                </Button>
+
+                                <Button
+                                    Width="48"
+                                    Height="30"
+                                    Padding="4"
+                                    Tag="dot"
+                                    ToolTip.Tip="Nét chấm"
+                                    Click="OnArrowPatternVisualClick">
+                                    <Canvas Width="34" Height="18">
+                                        <Line
+                                            StartPoint="2,9"
+                                            EndPoint="32,9"
+                                            Stroke="#444A50"
+                                            StrokeThickness="2"
+                                            StrokeDashArray="1,3"
+                                            StrokeLineCap="Round"/>
+                                    </Canvas>
+                                </Button>
+                            </StackPanel>
+                            </Grid>
+
+<Grid
+                                x:Name="ArrowStrokePatternRow"
+                                ColumnDefinitions="92,*"
+                                RowDefinitions="Auto">
+                                <TextBlock
+                                    Grid.Column="0"
+                                    Text="Kiểu nét"
+                                    FontSize="11"
+                                    Foreground="#5F656C"
+                                    VerticalAlignment="Center"/>
+
+                                <ComboBox
+                                    x:Name="ArrowStrokePatternComboBox"
+                                    Grid.Column="1"
+                                    SelectedIndex="0"
+                                    SelectionChanged="OnArrowStrokePatternChanged">
+                                    <ComboBoxItem Content="Liền"/>
+                                    <ComboBoxItem Content="Đứt đoạn"/>
+                                    <ComboBoxItem Content="Chấm"/>
+                                </ComboBox>
+
+
+                            </Grid>
+
+                            <!-- Curve: separate visual row -->
+                            <Grid
+                                x:Name="ArrowCurveRow"
+                                ColumnDefinitions="92,*"
+                                RowDefinitions="Auto"
+                                Margin="0,2,0,0">
+                                <TextBlock
+                                    Grid.Column="0"
+                                    Text="Đường cong"
+                                    FontSize="11"
+                                    Foreground="#5F656C"
+                                    VerticalAlignment="Center"/>
+
+                                <Border
+                                    Grid.Column="1"
+                                    Background="#F1F3F5"
+                                    BorderBrush="#D7DADF"
+                                    BorderThickness="1"
+                                    CornerRadius="6"
+                                    Padding="8,6">
+                                    <CheckBox
+                                        x:Name="ArrowCurveCheckBox"
+                                        Content="Bézier"
+                                        FontSize="11"
+                                        IsCheckedChanged="OnArrowCurveChanged"/>
+                                </Border>
+                            </Grid>
+
+
+                            <!-- Stroke width -->
+                            <Grid
+                                ColumnDefinitions="92,*"
+                                RowDefinitions="Auto">
+                                <TextBlock
+                                    Grid.Column="0"
+                                    Text="Độ dày"
+                                    FontSize="11"
+                                    Foreground="#5F656C"
+                                    VerticalAlignment="Center"/>
+
+                                <NumericUpDown
+                                    x:Name="ArrowStrokeWidthEditor"
+                                    Grid.Column="1"
+                                    Minimum="0.5"
+                                    Maximum="30"
+                                    Increment="0.5"
+                                    FormatString="0.0"
+                                    Value="2.5"
+                                    ValueChanged="OnArrowStrokeWidthChanged"/>
+                            </Grid>
+
+                            <TextBlock
+                                x:Name="ArrowHeadSectionTitle"
+                                Text="ĐẦU ĐƯỜNG"
+                                FontSize="9.5"
+                                FontWeight="Bold"
+                                Foreground="#8A8F95"
+                                Margin="0,4,0,-3"/>
+
+                            <!-- Start marker -->
+                            <Grid
+                                x:Name="ArrowStartHeadRow"
+                                ColumnDefinitions="92,*"
+                                RowDefinitions="Auto">
+                                <TextBlock
+                                    Grid.Column="0"
+                                    Text="Đầu bắt đầu"
+                                    FontSize="11"
+                                    Foreground="#5F656C"
+                                    VerticalAlignment="Center"/>
+
+                                <ComboBox
+                                    x:Name="ArrowStartHeadComboBox"
+                                    Grid.Column="1"
+                                    SelectedIndex="0"
+                                    SelectionChanged="OnArrowStartHeadChanged">
+                                    <ComboBoxItem Content="Không"/>
+                                    <ComboBoxItem Content="Tam giác"/>
+                                    <ComboBoxItem Content="Mũi tên hở"/>
+                                    <ComboBoxItem Content="Tròn"/>
+                                    <ComboBoxItem Content="Hình thoi"/>
+                                </ComboBox>
+                            </Grid>
+
+                            <!-- End marker -->
+                            <Grid
+                                x:Name="ArrowEndHeadRow"
+                                ColumnDefinitions="92,*"
+                                RowDefinitions="Auto">
+                                <TextBlock
+                                    Grid.Column="0"
+                                    Text="Đầu kết thúc"
+                                    FontSize="11"
+                                    Foreground="#5F656C"
+                                    VerticalAlignment="Center"/>
+
+                                <ComboBox
+                                    x:Name="ArrowEndHeadComboBox"
+                                    Grid.Column="1"
+                                    SelectedIndex="1"
+                                    SelectionChanged="OnArrowEndHeadChanged">
+                                    <ComboBoxItem Content="Không"/>
+                                    <ComboBoxItem Content="Tam giác"/>
+                                    <ComboBoxItem Content="Mũi tên hở"/>
+                                    <ComboBoxItem Content="Tròn"/>
+                                    <ComboBoxItem Content="Hình thoi"/>
+                                </ComboBox>
+                            </Grid>
+
+                            <Border
+                                x:Name="ArrowHeadHelpBorder"
+                                Padding="9"
+                                Background="#F0F2F4"
+                                CornerRadius="5">
+                                <TextBlock
+                                    Text="Hai đầu độc lập: có thể tạo mũi tên một đầu, hai đầu hoặc không đầu."
+                                    FontSize="9.5"
+                                    TextWrapping="Wrap"
+                                    Foreground="#70767D"/>
+                            </Border>
+                        </StackPanel>
+
+                        <!-- TEXT PROPERTY INSPECTOR -->
+                        <StackPanel
+                            x:Name="TextPropertyPanel"
+                            IsVisible="False"
+                            Spacing="12">
+
+                            <StackPanel Spacing="2">
+                                <TextBlock
+                                    Text="VĂN BẢN"
+                                    FontSize="10"
+                                    FontWeight="Bold"
+                                    Foreground="#777D84"/>
+
+                                <TextBlock
+                                    x:Name="TextPropertyNameText"
+                                    Text="Văn bản"
+                                    FontSize="13"
+                                    FontWeight="SemiBold"
+                                    Foreground="#33383E"/>
+                            </StackPanel>
+
+                            <Border Height="1" Background="#E0E2E5"/>
+
+                            <StackPanel Spacing="5">
+                                <TextBlock
+                                    Text="Nội dung"
+                                    FontSize="11"
+                                    Foreground="#5F656C"/>
+
+                                <TextBox
+                                    x:Name="TextContentEditor"
+                                    MinHeight="56"
+                                    TextWrapping="Wrap"
+                                    AcceptsReturn="True"
+                                    PlaceholderText="Nhập nội dung..."
+                                    TextChanged="OnTextContentChanged"/>
+                            </StackPanel>
+
+                            <Grid ColumnDefinitions="92,*">
+                                <TextBlock
+                                    Grid.Column="0"
+                                    Text="Cỡ chữ (m)"
+                                    FontSize="11"
+                                    Foreground="#5F656C"
+                                    VerticalAlignment="Center"/>
+
+                                <NumericUpDown
+                                    x:Name="TextFontSizeEditor"
+                                    Grid.Column="1"
+                                    Minimum="1"
+                                    Maximum="500"
+                                    Increment="1"
+                                    Value="16"
+                                    FormatString="0"
+                                    ValueChanged="OnTextFontSizeChanged"/>
+                            </Grid>
+
+                            <Grid ColumnDefinitions="92,*">
+                                <TextBlock
+                                    Grid.Column="0"
+                                    Text="Xoay (°)"
+                                    FontSize="11"
+                                    Foreground="#5F656C"
+                                    VerticalAlignment="Center"/>
+
+                                <NumericUpDown
+                                    x:Name="TextRotationEditor"
+                                    Grid.Column="1"
+                                    Minimum="0"
+                                    Maximum="359"
+                                    Increment="5"
+                                    Value="0"
+                                    FormatString="0.#"
+                                    ValueChanged="OnTextRotationChanged"/>
+                            </Grid>
+
+                            <Grid ColumnDefinitions="92,*">
+                                <TextBlock
+                                    Grid.Column="0"
+                                    Text="Định dạng"
+                                    FontSize="11"
+                                    Foreground="#5F656C"
+                                    VerticalAlignment="Center"/>
+
+                                <CheckBox
+                                    x:Name="TextBoldCheckBox"
+                                    Grid.Column="1"
+                                    Content="Đậm"
+                                    IsCheckedChanged="OnTextBoldChanged"/>
+                            </Grid>
+
+                            <TextBlock
+                                Text="Kéo chữ để di chuyển • kéo ô vuông để scale • kéo vòng tròn để xoay."
+                                FontSize="10"
+                                Foreground="#7B8086"
+                                TextWrapping="Wrap"/>
+                        </StackPanel>
+
+                        <!-- SYMBOL PROPERTY INSPECTOR -->
+                        <StackPanel
+                            x:Name="SymbolPropertyPanel"
+                            IsVisible="False"
+                            Spacing="12">
+
+                            <StackPanel Spacing="2">
+                                <TextBlock
+                                    Text="KÝ HIỆU SVG"
+                                    FontSize="10"
+                                    FontWeight="Bold"
+                                    Foreground="#777D84"/>
+
+                                <TextBlock
+                                    x:Name="SymbolPropertySourceText"
+                                    Text="SVG"
+                                    FontSize="11"
+                                    Foreground="#7B8086"/>
+                            </StackPanel>
+
+                            <Border
+                                Height="1"
+                                Background="#E0E2E5"/>
+
+                            <StackPanel Spacing="5">
+                                <TextBlock
+                                    Text="Tên ký hiệu"
+                                    FontSize="11"
+                                    Foreground="#5F656C"/>
+
+                                <TextBox
+                                    x:Name="SymbolNameEditor"
+                                    PlaceholderText="Tên ký hiệu..."
+                                    TextChanged="OnSymbolNameChanged"/>
+                            </StackPanel>
+
+                            <Grid
+                                ColumnDefinitions="92,*">
+
+                                <TextBlock
+                                    Grid.Column="0"
+                                    Text="Kích thước (m)"
+                                    FontSize="11"
+                                    Foreground="#5F656C"
+                                    VerticalAlignment="Center"/>
+
+                                <NumericUpDown
+                                    x:Name="SymbolSizeEditor"
+                                    Grid.Column="1"
+                                    Minimum="1"
+                                    Maximum="500"
+                                    Increment="1"
+                                    Value="18"
+                                    FormatString="0.#"
+                                    ValueChanged="OnSymbolSizeChanged"/>
+                            </Grid>
+
+                            <Grid
+                                ColumnDefinitions="92,*">
+
+                                <TextBlock
+                                    Grid.Column="0"
+                                    Text="Xoay (°)"
+                                    FontSize="11"
+                                    Foreground="#5F656C"
+                                    VerticalAlignment="Center"/>
+
+                                <NumericUpDown
+                                    x:Name="SymbolRotationEditor"
+                                    Grid.Column="1"
+                                    Minimum="0"
+                                    Maximum="359"
+                                    Increment="5"
+                                    Value="0"
+                                    FormatString="0.#"
+                                    ValueChanged="OnSymbolRotationChanged"/>
+                            </Grid>
+
+                            <TextBlock
+                                Text="Kéo ô vuông để scale • kéo vòng tròn phía trên để xoay. Tên ký hiệu được lưu riêng."
+                                FontSize="10"
+                                Foreground="#7B8086"
+                                TextWrapping="Wrap"/>
+                        </StackPanel>
+
+                        <Border
+                            Height="1"
+                            Margin="0,18,0,12"
+                            Background="#E0E2E5"/>
+
+                        <TextBlock
+                            Text="HƯỚNG DẪN"
+                            FontSize="10"
+                            FontWeight="Bold"
+                            Foreground="#83888E"
+                            Margin="0,0,0,7"/>
+
+                        <TextBlock
+                            Text="Đường/Vùng/Mũi tên: click từng điểm, Enter hoặc double-click để kết thúc. Chọn mũi tên để đổi kiểu nét, độ dày và kiểu ở từng đầu. Cửa: click trực tiếp lên đường/cạnh vùng. Esc để hủy thao tác vẽ."
+                            FontSize="10"
+                            TextWrapping="Wrap"
+                            Foreground="#858A91"/>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- ================================================= -->
+                <!-- PRINT SETTINGS — chỉ hiện trong Print Preview         -->
+                <!-- ================================================= -->
+                <Border
+                    x:Name="PrintSettingsPanel"
+                    Grid.Row="2"
+                    IsVisible="False"
+                    BorderBrush="#DDE0E4"
+                    BorderThickness="0,1,0,0"
+                    Background="#F7F7F7"
+                    Padding="10,8">
+
+                    <StackPanel Spacing="7">
+
+                        <TextBlock
+                            Text="THÔNG TIN BẢN IN"
+                            FontSize="10"
+                            FontWeight="Bold"
+                            Foreground="#50555C"/>
+
+                        <TextBox
+                            x:Name="PrintPlanTitleEditor"
+                            Watermark="Tên phương án"
+                            Text="PHƯƠNG ÁN"
+                            TextChanged="OnPrintSheetInfoChanged"/>
+
+                        <TextBox
+                            x:Name="PrintUnitNameEditor"
+                            Watermark="Đơn vị"
+                            Text="ĐƠN VỊ"
+                            TextChanged="OnPrintSheetInfoChanged"/>
+
+                        <TextBox
+                            x:Name="PrintLocationEditor"
+                            Watermark="Địa điểm / nội dung phụ"
+                            TextChanged="OnPrintSheetInfoChanged"/>
+
+                        <CheckBox
+                            x:Name="PrintShowTitleBlockCheckBox"
+                            Content="Dành chỗ thông tin DOCX"
+                            IsChecked="True"
+                            IsCheckedChanged="OnPrintShowTitleBlockChanged"/>
+
+                        <TextBlock
+                            Text="Tiêu đề, đơn vị, ký tên sẽ map vào DOCX sau. Vùng phương án và bảng quy ước đã cố định theo mẫu."
+                            FontSize="9.5"
+                            Foreground="#7A7F85"
+                            TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- ================================================= -->
+                <!-- SYMBOL LIBRARY — cùng cột THUỘC TÍNH, dưới cùng       -->
+                <!-- ================================================= -->
+                <Border
+                    x:Name="SymbolLibraryPanel"
+                    Grid.Row="3"
+                    BorderBrush="#DDE0E4"
+                    BorderThickness="0,1,0,0"
+                    Background="#F8F8F9"
+                    Padding="10,8">
+
+                    <Grid
+                        RowDefinitions="Auto,Auto">
+
+                        <Grid
+                            Grid.Row="0"
+                            ColumnDefinitions="*,Auto"
+                            Margin="0,0,0,6">
+
+                            <TextBlock
+                                Text="KÝ HIỆU"
+                                FontSize="10"
+                                FontWeight="Bold"
+                                Foreground="#50555C"
+                                VerticalAlignment="Center"/>
+
+                            <Button
+                                Grid.Column="1"
+                                Height="24"
+                                Padding="8,0"
+                                Click="OnImportSvgSymbolClick"
+                                ToolTip.Tip="Thêm SVG vào thư viện cá nhân">
+
+                                <TextBlock
+                                    Text="+ SVG"
+                                    FontSize="10"
+                                    VerticalAlignment="Center"/>
+                            </Button>
+                        </Grid>
+
+                        <ScrollViewer
+                            Grid.Row="1"
+                            HorizontalScrollBarVisibility="Disabled"
+                            VerticalScrollBarVisibility="Auto"
+                            MaxHeight="132">
+
+                            <ItemsControl
+                                x:Name="SymbolLibraryItemsControl">
+
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel
+                                            Orientation="Horizontal"/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate
+                                        x:DataType="symbols:SymbolLibraryItem">
+
+                                        <Border
+                                            Width="46"
+                                            Height="46"
+                                            Margin="2"
+                                            Padding="5"
+                                            Background="#FFFFFF"
+                                            BorderBrush="#E1E4E7"
+                                            BorderThickness="1"
+                                            CornerRadius="5"
+                                            PointerPressed="OnSymbolCardPointerPressed"
+                                            PointerMoved="OnSymbolCardPointerMoved"
+                                            PointerReleased="OnSymbolCardPointerReleased"
+                                            DoubleTapped="OnSymbolCardDoubleTapped"
+                                            ToolTip.Tip="{Binding Name}">
+
+                                            <Image
+                                                Source="{Binding PreviewImage}"
+                                                Stretch="Uniform"/>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- ========================================================= -->
+        <!-- STATUS BAR                                                 -->
+        <!-- ========================================================= -->
+        <Border
+            Grid.Row="3"
+            Grid.ColumnSpan="3"
+            Background="#ECEEF0"
+            BorderBrush="#D0D4D8"
+            BorderThickness="0,1,0,0">
+
+            <TextBlock
+                x:Name="PlanningStatusText"
+                VerticalAlignment="Center"
+                Margin="10,0"
+                FontSize="10"
+                Foreground="#555A60"
+                Text="Plan Editor • Offline Map"/>
+        </Border>
+
+        <!-- ========================================================= -->
+        <!-- STARTUP / PROJECT MANAGER            -->
+        <!-- ========================================================= -->
+                <Border
+            x:Name="StartupOverlay"
+            Grid.Row="0"
+            Grid.RowSpan="4"
+            Grid.Column="0"
+            Grid.ColumnSpan="3"
+            ZIndex="1000"
+            Background="#111315"
+            IsHitTestVisible="True">
+
+            <Grid ColumnDefinitions="220,*">
+
+                <Border
+                    Grid.Column="0"
+                    Background="#ffffff"
+                    Padding="16,18">
+                    <Grid RowDefinitions="Auto,Auto,*,Auto">
+                        <StackPanel Grid.Row="0" Spacing="3" Orientation="Horizontal" HorizontalAlignment="Center">
+                            <Image
+                                x:Name="LogoPas"
+                                Source="{SvgImage /Assets/Brand/pas-logo.svg}"
+                                Stretch="Uniform"
+                                Height="32"
+                                Margin="0,20"
+                                />
+                            <TextBlock
+                                Text="beta"
+                                FontSize="12"
+                                Foreground="#7A8088"
+                                VerticalAlignment="Center"
+                                />
+                        </StackPanel>
+
+                        <StackPanel Grid.Row="1" Spacing="6" Margin="0,0,0,14">
+                            <Button Height="32" Padding="10,0" HorizontalContentAlignment="Left"
+                                    Background="#0154d4" Foreground="White" BorderThickness="0"
+                                    CornerRadius="4" Click="OnStartupNewProjectClick">
+                                <TextBlock Text="+   Dự án mới" FontSize="10"  VerticalAlignment="Center" FontWeight="SemiBold"/>
+                            </Button>
+
+                            <Button Height="32" Padding="10,0" HorizontalContentAlignment="Left"
+                                    Background="#191C1F" Foreground="#DDE0E3"
+                                    BorderBrush="#2C3034" BorderThickness="1"
+                                    CornerRadius="4" Click="OnStartupOpenProjectClick">
+                                <TextBlock Text="Mở dự án" FontSize="10" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                            </Button>
+
+                            <Button Height="32" Padding="10,0" HorizontalContentAlignment="Left"
+                                    Background="#191C1F" Foreground="#DDE0E3"
+                                    BorderBrush="#2C3034" BorderThickness="1"
+                                    CornerRadius="4" Click="OnStartupOpenFolderClick">
+                                <TextBlock Text="Mở thư mục" VerticalAlignment="Center" FontSize="10" FontWeight="SemiBold"/>
+                            </Button>
+                        </StackPanel>
+
+                        <ScrollViewer Grid.Row="2"
+                                      VerticalScrollBarVisibility="Auto"
+                                      HorizontalScrollBarVisibility="Disabled">
+                            <StackPanel Spacing="13">
+
+                                <StackPanel Spacing="5">
+                                    <TextBlock Text="DỰ ÁN GẦN ĐÂY" FontSize="8" FontWeight="Bold"
+                                               Foreground="#777D84" Margin="2,0,0,2"/>
+
+                                    <TextBlock x:Name="StartupRecentProjectsEmptyText"
+                                               Text="Chưa có dự án gần đây."
+                                               FontSize="9" Foreground="#4F555C"
+                                               Margin="7,4,0,4"/>
+
+                                    <ItemsControl x:Name="StartupRecentProjectsItems">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="project:RecentWorkspaceItem">
+                                                <Button Classes="startupAction" Height="38" Margin="0,0,0,4" Padding="8,4"
+                                                        HorizontalContentAlignment="Stretch"
+                                                        Background="#ffffff" Foreground="#E7E9EB"
+                                                        BorderBrush="#FFEAEAEA" BorderThickness="0,1,0,1"
+                                                        Click="OnStartupRecentProjectClick">
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <ic:FluentIcon
+                                                                Icon="Document"
+                                                                IconVariant="Filled"
+                                                                Foreground="#5D646B"/>
+                                                            <Grid ColumnDefinitions="8,*"
+                                                                  RowDefinitions="Auto,Auto">
+
+                                                                <TextBlock Grid.Column="1"
+                                                                           Text="{Binding DisplayName}"
+                                                                           FontSize="9" FontWeight="SemiBold"
+                                                                           Foreground="#5D646B"
+                                                                           TextTrimming="CharacterEllipsis"/>
+                                                                <TextBlock Grid.Row="1" Grid.Column="1"
+                                                                           Text="{Binding SecondaryText}"
+                                                                           FontSize="7.5" Foreground="#5D646B"
+                                                                           TextTrimming="CharacterEllipsis"
+                                                                           Margin="0,1,0,0"/>
+                                                            </Grid>
+                                                        </StackPanel>
+                                                </Button>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+
+                                <StackPanel Spacing="5">
+                                    <TextBlock Text="THƯ MỤC GẦN ĐÂY" FontSize="8" FontWeight="Bold"
+                                               Foreground="#777D84" Margin="2,0,0,2"/>
+
+                                    <TextBlock x:Name="StartupRecentFoldersEmptyText"
+                                               Text="Chưa có thư mục gần đây."
+                                               FontSize="9" Foreground="#4F555C"
+                                               Margin="7,4,0,4"/>
+
+                                    <ItemsControl x:Name="StartupRecentFoldersItems">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="project:RecentWorkspaceItem">
+                                                <Button Classes="startupAction" Height="38" Margin="0,0,0,4" Padding="8,4"
+                                                        HorizontalContentAlignment="Stretch"
+                                                        Background="#ffffff" Foreground="#E7E9EB"
+                                                        BorderBrush="#FFEAEAEA" BorderThickness="0,1,0,1"
+                                                        Click="OnStartupRecentFolderClick">
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <ic:FluentIcon
+                                                                Icon="Folder"
+                                                                IconVariant="Filled"
+                                                                Foreground="#5D646B"/>
+                                                            <Grid ColumnDefinitions="8,*"
+                                                                  RowDefinitions="Auto,Auto">
+                
+                                                                <TextBlock Grid.Column="1"
+                                                                           Text="{Binding DisplayName}"
+                                                                           FontSize="9" FontWeight="SemiBold"
+                                                                           Foreground="#5D646B"
+                                                                           TextTrimming="CharacterEllipsis"/>
+                                                                <TextBlock Grid.Row="1" Grid.Column="1"
+                                                                           Text="{Binding SecondaryText}"
+                                                                           FontSize="7.5" Foreground="#5D646B"
+                                                                           TextTrimming="CharacterEllipsis"
+                                                                           Margin="0,1,0,0"/>
+                                                            </Grid>
+                                                        </StackPanel>
+                                                </Button>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </StackPanel>
+                        </ScrollViewer>
+
+                        <StackPanel Grid.Row="3" Margin="0,12,0,0" Spacing="3">
+                            <TextBlock Text="@ Bản quyền thuộc về E08" FontSize="8" Foreground="#4E545A" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <Border Grid.Column="1" Background="" ClipToBounds="True">
+                    <Grid>
+                        <Image x:Name="StartupHeroImage"
+                                Source="/Assets/StartupHeroImage.jpg"
+                               Stretch="UniformToFill"
+                               HorizontalAlignment="Stretch"
+                               VerticalAlignment="Stretch"/>
+                        <Border VerticalAlignment="Bottom"
+                                Height="110"
+                                Background="#90000000">
+                            <StackPanel VerticalAlignment="Center"
+                                        Margin="28,0"
+                                        Spacing="4">
+                                <TextBlock Text="PHƯƠNG ÁN SỐ"
+                                           FontSize="18"
+                                           FontWeight="SemiBold"
+                                           Foreground="#EDF0F2"/>
+                                <TextBlock Text="PA-S – Phương án số là nền tảng hỗ trợ xây dựng, trực quan hóa và quản lý phương án trên nền bản đồ số, được phát triển theo định hướng vận hành trực quan, dữ liệu tập trung và có thể sử dụng trong môi trường nội bộ. Hệ thống cho phép người dùng nhanh chóng thiết lập khu vực tác nghiệp, bố trí lực lượng, ký hiệu chuyên dụng, tuyến di chuyển, khu vực chức năng và các thành phần phục vụ xây dựng phương án; đồng thời hỗ trợ chỉnh sửa, lưu trữ, mở lại và xuất nội dung phục vụ báo cáo, in ấn hoặc trao đổi nghiệp vụ. Với giao diện tập trung vào bản đồ, hệ thống công cụ trực quan và khả năng làm việc ngoại tuyến, PA-S hướng tới việc rút ngắn thời gian xây dựng phương án, nâng cao tính thống nhất trong trình bày, giảm phụ thuộc vào thao tác thủ công và tạo nền tảng cho quá trình số hóa công tác lập, quản lý và khai thác phương án trong thực tế."
+                                           FontSize="9.5"
+                                           Foreground="#80ffffff"
+                                            TextWrapping="Wrap"
+                                            FontStyle="Italic"
+                                           />
+                                           
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </Border>
+
+            </Grid>
+        </Border>
+
+
+    </Grid>
+</Window>

@@ -1,0 +1,143 @@
+<UserControl
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:search="using:PlanEditor.App.Search"
+    x:Class="PlanEditor.App.Controls.SearchPanel"
+    x:CompileBindings="False"
+    Width="420"
+    HorizontalAlignment="Left"
+    VerticalAlignment="Top">
+
+    <StackPanel
+        Width="420"
+        Spacing="6">
+
+        <!-- SEARCH BOX -->
+        <Border
+            Height="48"
+            Background="White"
+            BorderBrush="#D0D0D0"
+            BorderThickness="1"
+            CornerRadius="8"
+            BoxShadow="0 3 12 0 #30000000">
+
+            <Grid
+                ColumnDefinitions="42,*">
+
+                <!-- ICON -->
+                <TextBlock
+                    Grid.Column="0"
+                    Text="⌕"
+                    FontSize="23"
+                    Foreground="#555555"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"/>
+
+                <!-- INPUT -->
+                <TextBox
+                    x:Name="SearchTextBox"
+                    Grid.Column="1"
+
+                    Height="46"
+
+                    PlaceholderText="Tìm đường, địa điểm, phường/xã..."
+
+                    Background="Transparent"
+                    Foreground="#202124"
+
+                    BorderThickness="0"
+
+                    FontSize="15"
+
+                    Padding="2,0,10,0"
+
+                    VerticalContentAlignment="Center"
+
+                    TextChanged="OnSearchTextChanged"
+                    KeyDown="OnSearchKeyDown"/>
+
+            </Grid>
+        </Border>
+
+        <!-- SEARCH RESULTS -->
+        <Border
+            x:Name="ResultsContainer"
+
+            IsVisible="False"
+
+            Background="White"
+
+            BorderBrush="#D0D0D0"
+            BorderThickness="1"
+
+            CornerRadius="8"
+
+            BoxShadow="0 3 12 0 #30000000"
+
+            MaxHeight="430"
+
+            ClipToBounds="True">
+
+            <ListBox
+                x:Name="ResultsList"
+
+                Background="White"
+                BorderThickness="0"
+
+                PointerReleased="OnResultPointerReleased">
+
+                <ListBox.ItemTemplate>
+
+                    <DataTemplate
+                        DataType="search:VietnamSearchResult">
+
+                        <Grid
+                            MinHeight="54"
+                            Margin="12,4"
+                            ColumnDefinitions="*,Auto">
+
+                            <StackPanel
+                                Grid.Column="0"
+                                VerticalAlignment="Center"
+                                Spacing="2">
+
+                                <TextBlock
+                                    Text="{Binding Name}"
+                                    FontSize="14"
+                                    FontWeight="SemiBold"
+                                    Foreground="#202124"
+                                    TextTrimming="CharacterEllipsis"/>
+
+                                <TextBlock
+                                    Text="{Binding DisplayLocation}"
+                                    FontSize="12"
+                                    Foreground="#70757A"
+                                    TextTrimming="CharacterEllipsis"/>
+
+                            </StackPanel>
+
+                            <TextBlock
+                                Grid.Column="1"
+
+                                Text="{Binding TypeLabel}"
+
+                                FontSize="11"
+                                Foreground="#888888"
+
+                                Margin="12,0,4,0"
+
+                                VerticalAlignment="Center"/>
+
+                        </Grid>
+
+                    </DataTemplate>
+
+                </ListBox.ItemTemplate>
+
+            </ListBox>
+
+        </Border>
+
+    </StackPanel>
+
+</UserControl>

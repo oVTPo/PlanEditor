@@ -7,7 +7,6 @@ publish/
 artifacts/
 
 # macOS packages
-*.app/
 *.dmg
 *.pkg
 *.zip
