@@ -1,0 +1,26 @@
+# Build outputs
+bin/
+obj/
+dist/
+build/
+publish/
+artifacts/
+
+# macOS packages
+*.app/
+*.dmg
+*.pkg
+*.zip
+
+# Large map/runtime data
+**/MapData/*.db
+**/MapData/*.db-shm
+**/MapData/*.db-wal
+
+# Raw map sources
+MapSource/
+*.osm.pbf
+*.geojsonseq
+
+# macOS
+.DS_Store

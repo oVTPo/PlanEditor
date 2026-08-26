@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleName</key><string>PA-S</string>
+  <key>CFBundleDisplayName</key><string>PA-S</string>
+  <key>CFBundleIdentifier</key><string>vn.pas.planeditor</string>
+  <key>CFBundleExecutable</key><string>PA-S</string>
+  <key>CFBundlePackageType</key><string>APPL</string>
+  <key>CFBundleVersion</key><string>__BUNDLE_VERSION__</string>
+  <key>CFBundleShortVersionString</key><string>__SHORT_VERSION__</string>
+  <key>CFBundleIconFile</key><string>app.icns</string>
+  <key>NSHighResolutionCapable</key><true/>
+
+  <key>CFBundleDocumentTypes</key>
+  <array>
+    <dict>
+      <key>CFBundleTypeName</key><string>PA-S Project</string>
+      <key>CFBundleTypeRole</key><string>Editor</string>
+      <key>LSHandlerRank</key><string>Owner</string>
+      <key>LSItemContentTypes</key>
+      <array><string>vn.pas.planeditor.project</string></array>
+      <key>CFBundleTypeIconFile</key><string>pas-project.icns</string>
+    </dict>
+  </array>
+
+  <key>UTExportedTypeDeclarations</key>
+  <array>
+    <dict>
+      <key>UTTypeIdentifier</key><string>vn.pas.planeditor.project</string>
+      <key>UTTypeDescription</key><string>PA-S Project</string>
+      <key>UTTypeConformsTo</key>
+      <array>
+        <string>public.data</string>
+        <string>public.content</string>
+      </array>
+      <key>UTTypeTagSpecification</key>
+      <dict>
+        <key>public.filename-extension</key>
+        <array><string>pas</string></array>
+        <key>public.mime-type</key><string>application/x-pas-project</string>
+      </dict>
+    </dict>
+  </array>
+</dict>
+</plist>
