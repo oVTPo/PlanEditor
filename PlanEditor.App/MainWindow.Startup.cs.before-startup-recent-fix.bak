@@ -16,22 +16,28 @@ public partial class MainWindow
 
     private void OnStartupOverlayLoaded(object? sender, RoutedEventArgs e)
     {
-        StartupRecentProjectsItems.ItemsSource =
-            _recentProjects;
-
-        StartupRecentFoldersItems.ItemsSource =
-            _recentFolders;
-
+        /*
+         * DEBUG / BYPASS STARTUP
+         *
+         * Tạm thời bỏ qua màn hình Startup để kiểm tra editor,
+         * toolbar, project system, map canvas và các công cụ bên trong.
+         *
+         * Không xóa Startup khỏi XAML; chỉ ẩn nó ngay khi load.
+         */
+        StartupRecentProjectsItems.ItemsSource = _recentProjects;
+        StartupRecentFoldersItems.ItemsSource = _recentFolders;
         RefreshStartupRecentLists();
 
-        StartupOverlay.IsVisible =
-            true;
+        StartupOverlay.IsVisible = false;
+        StartupOverlay.IsHitTestVisible = false;
 
-        StartupOverlay.IsHitTestVisible =
-            true;
+        MapCanvas.Focus();
+
+        PlanningStatusText.Text =
+            "DEBUG • Đã bỏ qua Startup";
 
         Console.WriteLine(
-            $"[STARTUP] Recent projects={_recentProjects.Count}, folders={_recentFolders.Count}"
+            "[STARTUP] BYPASS enabled - editor opened directly."
         );
     }
 

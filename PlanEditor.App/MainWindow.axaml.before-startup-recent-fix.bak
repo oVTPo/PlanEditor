@@ -2027,7 +2027,6 @@
         <!-- ========================================================= -->
                 <Border
             x:Name="StartupOverlay"
-            Loaded="OnStartupOverlayLoaded"
             Grid.Row="0"
             Grid.RowSpan="4"
             Grid.Column="0"

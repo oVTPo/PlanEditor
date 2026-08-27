@@ -868,6 +868,10 @@ _projectFolderExplorer
             ProjectExplorerFolderText.Text =
                 localPath;
 
+            RememberRecentFolder(
+                localPath
+            );
+
             PlanningStatusText.Text =
                 $"Đã mở thư mục: {localPath}";
         }
@@ -1788,6 +1792,10 @@ _projectFolderExplorer
             ProjectExplorerFolderText.Text =
                 folder;
 
+            RememberRecentFolder(
+                folder
+            );
+
             UpdateExplorerEmptyState();
         }
         catch (Exception ex)
@@ -1897,6 +1905,10 @@ _projectFolderExplorer
             FlyToOpenedProject();
 
             OpenContainingProjectFolder(
+                file
+            );
+
+            RememberRecentProjectFile(
                 file
             );
 
@@ -2014,6 +2026,10 @@ _projectFolderExplorer
             UpdateProjectUi();
 
             OpenContainingProjectFolder(
+                file
+            );
+
+            RememberRecentProjectFile(
                 file
             );
 
