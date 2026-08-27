@@ -21,5 +21,8 @@ MapSource/
 *.osm.pbf
 *.geojsonseq
 
+# Private symbol assets
+PlanEditor.App/Assets/Symbols/
+
 # macOS
 .DS_Store
