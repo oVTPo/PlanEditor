@@ -151,7 +151,7 @@ public sealed class SelectTool :
 
         /*
          * PRIORITY -1:
-         * Double-click Area/Circle để sửa nhãn.
+         * Double-click Area để sửa nhãn.
          * Xử lý trước vertex/Bezier handle để lần click thứ hai
          * không bị drag ăn mất.
          */
@@ -163,6 +163,48 @@ public sealed class SelectTool :
             if (
                 doubleHit is PlanningPolygon polygon
             )
+            {
+                e.Pointer.Capture(null);
+
+                EndDrag(
+                    notifyChanged: false
+                );
+
+                _manager.SetSelected(
+                    polygon
+                );
+
+                _canvas.RequestAreaLabelEdit(
+                    polygon
+                );
+
+                return true;
+            }
+        }
+        {
+            PlanningObject? doubleHit =
+                HitTest(screen);
+
+            if (
+                doubleHit is PlanningPolygon polygon
+            )
+            {
+                e.Pointer.Capture(null);
+
+                EndDrag(
+                    notifyChanged: false
+                );
+
+                _manager.SetSelected(
+                    polygon
+                );
+
+                _canvas.RequestAreaLabelEdit(
+                    polygon
+                );
+
+                return true;
+            }
             {
                 e.Pointer.Capture(null);
 
