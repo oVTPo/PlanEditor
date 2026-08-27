@@ -5249,7 +5249,12 @@ _projectFolderExplorer
         }
 
         polygon.CurveEnabled = true;
-        polygon.EnsureCurveHandles();
+
+        /*
+         * Mỗi lần user bấm Bézier, tự sinh lại bộ handle auto-smooth.
+         * Sau đó SelectTool có thể kéo từng handle để tinh chỉnh.
+         */
+        polygon.ResetCurveHandles();
 
         AreaStraightToggle.IsChecked = false;
         AreaBezierToggle.IsChecked = true;

@@ -100,15 +100,22 @@ public sealed class AreaTool :
                 world.Y
             );
 
-        _points.Add(point);
-        _previewPoint = point;
-        _hasPreviewPoint = true;
-
+        // A double-click produces two PointerPressed events.
+        // The first press has already added the final anchor, so the
+        // second press must finish the polygon without adding the same
+        // point again. Otherwise the closed polygon gets a duplicate
+        // final vertex, which creates a degenerate edge and unstable
+        // Bézier handles.
         if (e.ClickCount >= 2 &&
             _points.Count >= 3)
         {
             Finish();
+            return true;
         }
+
+        _points.Add(point);
+        _previewPoint = point;
+        _hasPreviewPoint = true;
 
         _canvas.InvalidateVisual();
 
@@ -256,7 +263,12 @@ public sealed class AreaTool :
         }
 
         var polygon =
-            new PlanningPolygon();
+            new PlanningPolygon
+            {
+                // New areas always start as true polygons.
+                // Bézier mode can be enabled explicitly from properties.
+                CurveEnabled = false
+            };
 
         foreach (
             WorldPoint point

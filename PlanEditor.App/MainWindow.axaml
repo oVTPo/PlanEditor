@@ -2173,8 +2173,26 @@
                             </StackPanel>
                         </ScrollViewer>
 
-                        <StackPanel Grid.Row="3" Margin="0,12,0,0" Spacing="3">
-                            <TextBlock Text="@ Bản quyền thuộc về E08" FontSize="8" Foreground="#4E545A" HorizontalAlignment="Center"/>
+                        <StackPanel
+                            Grid.Row="3"
+                            Margin="0,12,0,0"
+                            Spacing="3"
+                            Orientation="Horizontal"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center">
+
+                            <TextBlock
+                                Text="Powered by"
+                                FontSize="8"
+                                Foreground="#4E545A"
+                                VerticalAlignment="Center"/>
+
+                            <Image
+                                Source="avares://PA-S/Assets/logo_E08.png"
+                                Width="64"
+                                Height="48"
+                                Stretch="Uniform"
+                                VerticalAlignment="Center"/>
                         </StackPanel>
                     </Grid>
                 </Border>

@@ -97,10 +97,13 @@ public sealed class PlanningPolygon :
         if (count == 0)
         {
             CurveHandles.Clear();
-
             return;
         }
 
+        /*
+         * Chỉ tạo handle còn thiếu.
+         * Handle user đã kéo (IsCustom = true) được giữ nguyên.
+         */
         while (
             CurveHandles.Count <
             count
@@ -109,58 +112,10 @@ public sealed class PlanningPolygon :
             int i =
                 CurveHandles.Count;
 
-            WorldPoint anchor =
-                Points[i];
-
-            WorldPoint previous =
-                Points[
-                    (
-                        i - 1 +
-                        count
-                    ) %
-                    count
-                ];
-
-            WorldPoint next =
-                Points[
-                    (
-                        i + 1
-                    ) %
-                    count
-                ];
-
-            double dx =
-                (
-                    next.X -
-                    previous.X
-                ) /
-                6.0;
-
-            double dy =
-                (
-                    next.Y -
-                    previous.Y
-                ) /
-                6.0;
-
             CurveHandles.Add(
-                new PolygonBezierHandlePair
-                {
-                    InHandle =
-                        new WorldPoint(
-                            anchor.X - dx,
-                            anchor.Y - dy
-                        ),
-
-                    OutHandle =
-                        new WorldPoint(
-                            anchor.X + dx,
-                            anchor.Y + dy
-                        ),
-
-                    IsCustom =
-                        false
-                }
+                CreateAutoCurveHandle(
+                    i
+                )
             );
         }
 
@@ -175,11 +130,193 @@ public sealed class PlanningPolygon :
         }
     }
 
+    /*
+     * Dùng khi user bấm "Bézier":
+     * bỏ toàn bộ handle cũ và tự sinh lại một đường cong mượt,
+     * sau đó user vẫn có thể kéo từng handle để tinh chỉnh.
+     */
     public void ResetCurveHandles()
     {
         CurveHandles.Clear();
-
         EnsureCurveHandles();
+    }
+
+    private PolygonBezierHandlePair
+        CreateAutoCurveHandle(
+            int index)
+    {
+        int count =
+            Points.Count;
+
+        WorldPoint anchor =
+            Points[index];
+
+        if (count < 2)
+        {
+            return new PolygonBezierHandlePair
+            {
+                InHandle =
+                    anchor,
+
+                OutHandle =
+                    anchor,
+
+                IsCustom =
+                    false
+            };
+        }
+
+        WorldPoint previous =
+            Points[
+                (
+                    index - 1 +
+                    count
+                ) %
+                count
+            ];
+
+        WorldPoint next =
+            Points[
+                (
+                    index + 1
+                ) %
+                count
+            ];
+
+        double prevDx =
+            anchor.X -
+            previous.X;
+
+        double prevDy =
+            anchor.Y -
+            previous.Y;
+
+        double nextDx =
+            next.X -
+            anchor.X;
+
+        double nextDy =
+            next.Y -
+            anchor.Y;
+
+        double previousLength =
+            System.Math.Sqrt(
+                prevDx * prevDx +
+                prevDy * prevDy
+            );
+
+        double nextLength =
+            System.Math.Sqrt(
+                nextDx * nextDx +
+                nextDy * nextDy
+            );
+
+        /*
+         * Hướng tangent theo Catmull-Rom:
+         * previous -> next.
+         */
+        double tangentX =
+            next.X -
+            previous.X;
+
+        double tangentY =
+            next.Y -
+            previous.Y;
+
+        double tangentLength =
+            System.Math.Sqrt(
+                tangentX * tangentX +
+                tangentY * tangentY
+            );
+
+        if (tangentLength <
+            0.000001)
+        {
+            return new PolygonBezierHandlePair
+            {
+                InHandle =
+                    anchor,
+
+                OutHandle =
+                    anchor,
+
+                IsCustom =
+                    false
+            };
+        }
+
+        tangentX /=
+            tangentLength;
+
+        tangentY /=
+            tangentLength;
+
+        /*
+         * 0.28 tạo auto-smooth rõ ràng nhưng hạn chế overshoot.
+         * Mỗi phía dùng chiều dài cạnh tương ứng nên handle nằm
+         * đúng theo hình học local thay vì phình quá xa ở cạnh ngắn.
+         */
+        const double smoothing =
+            0.28;
+
+        double inLength =
+            previousLength *
+            smoothing;
+
+        double outLength =
+            nextLength *
+            smoothing;
+
+        /*
+         * Clamp thêm theo cạnh ngắn hơn để góc nhọn không bị
+         * kéo thành "giọt nước".
+         */
+        double localLimit =
+            System.Math.Min(
+                previousLength,
+                nextLength
+            ) *
+            0.42;
+
+        inLength =
+            System.Math.Min(
+                inLength,
+                localLimit
+            );
+
+        outLength =
+            System.Math.Min(
+                outLength,
+                localLimit
+            );
+
+        return new PolygonBezierHandlePair
+        {
+            InHandle =
+                new WorldPoint(
+                    anchor.X -
+                        tangentX *
+                        inLength,
+
+                    anchor.Y -
+                        tangentY *
+                        inLength
+                ),
+
+            OutHandle =
+                new WorldPoint(
+                    anchor.X +
+                        tangentX *
+                        outLength,
+
+                    anchor.Y +
+                        tangentY *
+                        outLength
+                ),
+
+            IsCustom =
+                false
+        };
     }
 
     public void MoveAnchorAndHandles(

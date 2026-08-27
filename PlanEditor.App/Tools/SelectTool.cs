@@ -66,6 +66,7 @@ public sealed class SelectTool :
 
     private WorldPoint _dragVertexBefore;
     private PlanningArrow? _dragBezierArrow;
+    private PlanningPolygon? _dragBezierPolygon;
     private int _dragBezierAnchorIndex = -1;
     private BezierHandleKind _dragBezierHandleKind =
         BezierHandleKind.None;
@@ -147,6 +148,41 @@ public sealed class SelectTool :
             e.GetPosition(
                 _canvas
             );
+
+        /*
+         * PRIORITY -1:
+         * Double-click Area để sửa nhãn.
+         * Xử lý trước vertex/Bezier handle để lần click thứ hai
+         * không bị drag ăn mất.
+         */
+        if (e.ClickCount >= 2)
+        {
+            PlanningObject? doubleHit =
+                HitTest(screen);
+
+            if (
+                doubleHit is PlanningPolygon polygon &&
+                polygon.AreaKind !=
+                    PlanningAreaKind.Circle
+            )
+            {
+                e.Pointer.Capture(null);
+
+                EndDrag(
+                    notifyChanged: false
+                );
+
+                _manager.SetSelected(
+                    polygon
+                );
+
+                _canvas.RequestAreaLabelEdit(
+                    polygon
+                );
+
+                return true;
+            }
+        }
 
         /*
          * PRIORITY 0:
@@ -276,6 +312,34 @@ public sealed class SelectTool :
         }
 
         /*
+         * PRIORITY 0.75:
+         * Bézier handle của Area đang selected.
+         */
+        if (
+            _manager.SelectedObject
+                is PlanningPolygon selectedPolygon &&
+            selectedPolygon.AreaKind !=
+                PlanningAreaKind.Circle &&
+            selectedPolygon.CurveEnabled &&
+            !selectedPolygon.IsLocked &&
+            TryHitPolygonBezierHandle(
+                selectedPolygon,
+                screen,
+                out int polygonCurveAnchorIndex,
+                out BezierHandleKind polygonCurveHandleKind)
+        )
+        {
+            BeginPolygonBezierHandleDrag(
+                e,
+                selectedPolygon,
+                polygonCurveAnchorIndex,
+                polygonCurveHandleKind
+            );
+
+            return true;
+        }
+
+        /*
          * PRIORITY 1:
          * Node/vertex.
          *
@@ -346,19 +410,6 @@ public sealed class SelectTool :
         _manager.SetSelected(
             hit
         );
-
-        if (
-            e.ClickCount >= 2 &&
-            hit is PlanningPolygon
-                polygon
-        )
-        {
-            _canvas.RequestAreaLabelEdit(
-                polygon
-            );
-
-            return true;
-        }
 
         /*
          * Door không có vertex riêng.
@@ -446,6 +497,20 @@ public sealed class SelectTool :
         )
         {
             MoveBezierHandle(
+                screen
+            );
+
+            return true;
+        }
+
+        if (
+            _dragBezierPolygon != null &&
+            _dragBezierAnchorIndex >= 0 &&
+            _dragBezierHandleKind !=
+                BezierHandleKind.None
+        )
+        {
+            MovePolygonBezierHandle(
                 screen
             );
 
@@ -1065,6 +1130,9 @@ public sealed class SelectTool :
         _dragBezierArrow =
             null;
 
+        _dragBezierPolygon =
+            null;
+
         _dragBezierAnchorIndex =
             -1;
 
@@ -1230,6 +1298,7 @@ public sealed class SelectTool :
         _dragText = null;
         _dragSymbol = null;
         _dragBezierArrow = null;
+        _dragBezierPolygon = null;
         _dragBezierAnchorIndex = -1;
         _dragBezierHandleKind =
             BezierHandleKind.None;
@@ -1688,6 +1757,18 @@ Point center =
         _dragCirclePointsBefore =
             null;
 
+        _dragBezierArrow =
+            null;
+
+        _dragBezierPolygon =
+            null;
+
+        _dragBezierAnchorIndex =
+            -1;
+
+        _dragBezierHandleKind =
+            BezierHandleKind.None;
+
         _symbolTransformMode =
             SymbolTransformMode.None;
 
@@ -1719,7 +1800,10 @@ Point center =
 
     private void CommitDragHistory()
     {
-        if (_dragBezierArrow != null)
+        if (
+            _dragBezierArrow != null ||
+            _dragBezierPolygon != null
+        )
         {
             _document.NotifyChanged();
 
@@ -1940,9 +2024,19 @@ Point center =
                 return;
             }
 
-            polygon.Points[
-                _dragVertexIndex
-            ] = newPoint;
+            if (polygon.CurveEnabled)
+            {
+                polygon.MoveAnchorAndHandles(
+                    _dragVertexIndex,
+                    newPoint
+                );
+            }
+            else
+            {
+                polygon.Points[
+                    _dragVertexIndex
+                ] = newPoint;
+            }
         }
         else if (
             _dragObject is
@@ -2731,6 +2825,205 @@ Point center =
 
         pair.IsCustom = true;
         _dragChanged = true;
+
+        _canvas.InvalidateVisual();
+    }
+
+    private bool TryHitPolygonBezierHandle(
+        PlanningPolygon polygon,
+        Point screen,
+        out int anchorIndex,
+        out BezierHandleKind kind)
+    {
+        if (
+            !polygon.CurveEnabled ||
+            polygon.AreaKind ==
+                PlanningAreaKind.Circle
+        )
+        {
+            anchorIndex = -1;
+            kind = BezierHandleKind.None;
+            return false;
+        }
+
+        polygon.EnsureCurveHandles();
+
+        const double radius = 8.0;
+        double radiusSquared =
+            radius * radius;
+
+        for (
+            int i = polygon.CurveHandles.Count - 1;
+            i >= 0;
+            i--)
+        {
+            PolygonBezierHandlePair pair =
+                polygon.CurveHandles[i];
+
+            Point inPoint =
+                _canvas.WorldToScreen(
+                    pair.InHandle.X,
+                    pair.InHandle.Y
+                );
+
+            if (
+                DistanceSquared(
+                    screen,
+                    inPoint
+                ) <= radiusSquared
+            )
+            {
+                anchorIndex = i;
+                kind = BezierHandleKind.In;
+                return true;
+            }
+
+            Point outPoint =
+                _canvas.WorldToScreen(
+                    pair.OutHandle.X,
+                    pair.OutHandle.Y
+                );
+
+            if (
+                DistanceSquared(
+                    screen,
+                    outPoint
+                ) <= radiusSquared
+            )
+            {
+                anchorIndex = i;
+                kind = BezierHandleKind.Out;
+                return true;
+            }
+        }
+
+        anchorIndex = -1;
+        kind = BezierHandleKind.None;
+        return false;
+    }
+
+    private void BeginPolygonBezierHandleDrag(
+        PointerPressedEventArgs e,
+        PlanningPolygon polygon,
+        int anchorIndex,
+        BezierHandleKind kind)
+    {
+        polygon.EnsureCurveHandles();
+
+        _dragBezierPolygon =
+            polygon;
+
+        _dragBezierArrow =
+            null;
+
+        _dragBezierAnchorIndex =
+            anchorIndex;
+
+        _dragBezierHandleKind =
+            kind;
+
+        _dragObject = null;
+        _dragVertexIndex = -1;
+        _dragDoor = null;
+        _dragText = null;
+        _dragSymbol = null;
+        _dragCircle = null;
+        _dragCirclePointsBefore = null;
+
+        _dragging = true;
+        _dragChanged = false;
+
+        _canvas.Cursor =
+            new Cursor(
+                StandardCursorType.SizeAll
+            );
+
+        e.Pointer.Capture(
+            _canvas
+        );
+    }
+
+    private void MovePolygonBezierHandle(
+        Point screen)
+    {
+        PlanningPolygon? polygon =
+            _dragBezierPolygon;
+
+        if (
+            polygon == null ||
+            _dragBezierAnchorIndex < 0 ||
+            _dragBezierAnchorIndex >=
+                polygon.CurveHandles.Count ||
+            _dragBezierAnchorIndex >=
+                polygon.Points.Count
+        )
+        {
+            return;
+        }
+
+        Point world =
+            _canvas.ScreenToWorld(
+                screen
+            );
+
+        var point =
+            new WorldPoint(
+                world.X,
+                world.Y
+            );
+
+        PolygonBezierHandlePair pair =
+            polygon.CurveHandles[
+                _dragBezierAnchorIndex
+            ];
+
+        WorldPoint anchor =
+            polygon.Points[
+                _dragBezierAnchorIndex
+            ];
+
+        if (
+            _dragBezierHandleKind ==
+                BezierHandleKind.In
+        )
+        {
+            pair.InHandle =
+                point;
+
+            pair.OutHandle =
+                new WorldPoint(
+                    anchor.X +
+                        (anchor.X - point.X),
+                    anchor.Y +
+                        (anchor.Y - point.Y)
+                );
+        }
+        else if (
+            _dragBezierHandleKind ==
+                BezierHandleKind.Out
+        )
+        {
+            pair.OutHandle =
+                point;
+
+            pair.InHandle =
+                new WorldPoint(
+                    anchor.X +
+                        (anchor.X - point.X),
+                    anchor.Y +
+                        (anchor.Y - point.Y)
+                );
+        }
+        else
+        {
+            return;
+        }
+
+        pair.IsCustom =
+            true;
+
+        _dragChanged =
+            true;
 
         _canvas.InvalidateVisual();
     }
