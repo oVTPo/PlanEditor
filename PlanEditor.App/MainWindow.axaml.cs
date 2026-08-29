@@ -749,11 +749,15 @@ _projectFolderExplorer
         );
 
         /*
-         * FitWorldBounds đổi camera ngay.
-         * RequestReload bảo đảm geometry nền được nạp
-         * cho vùng vừa fit.
+         * Project vừa mở:
+         * nạp đường xá NGAY tại viewport vừa fit.
+         *
+         * Không chờ debounce và không dùng Province/National overview
+         * cho lần load đầu tiên của project.
          */
-        _viewportLoader?.RequestReload();
+        _viewportLoader?.RequestReloadImmediate(
+            forceDetail: true
+        );
     }
 
     private async void OnNewProjectClick(

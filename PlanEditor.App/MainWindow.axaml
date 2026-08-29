@@ -1010,6 +1010,69 @@
                     VerticalAlignment="Top"
                     Margin="18"/>
 
+                <!-- Compact vector display dropdown -->
+                <Button
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Top"
+                    Margin="18"
+                    MinHeight="32"
+                    Padding="10,4"
+                    Content="Hiển thị  ▾"
+                    ToolTip.Tip="Tùy chỉnh lớp hiển thị">
+
+                    <Button.Flyout>
+                        <Flyout Placement="BottomEdgeAlignedRight">
+
+                            <!-- Dùng trực tiếp Flyout surface:
+                                 bỏ lớp Border lồng bên trong và bỏ bo góc phụ -->
+                            <StackPanel
+                                MinWidth="170"
+                                Margin="2,0"
+                                Spacing="3">
+
+                                <CheckBox
+                                    x:Name="BuildingLayerToggle"
+                                    IsChecked="True"
+                                    Content="Tòa nhà"
+                                    IsCheckedChanged="OnBuildingLayerToggleChanged"/>
+
+                                <CheckBox
+                                    x:Name="RoadLabelLayerToggle"
+                                    IsChecked="False"
+                                    Content="Tên đường"
+                                    IsCheckedChanged="OnRoadLabelLayerToggleChanged"/>
+
+                                <CheckBox
+                                    x:Name="MinorRoadLayerToggle"
+                                    IsChecked="True"
+                                    Content="Đường nhỏ / hẻm"
+                                    IsCheckedChanged="OnMinorRoadLayerToggleChanged"/>
+
+                                <CheckBox
+                                    x:Name="BarrierLayerToggle"
+                                    IsChecked="True"
+                                    Content="Rào chắn"
+                                    IsCheckedChanged="OnBarrierLayerToggleChanged"/>
+
+                                <CheckBox
+                                    x:Name="WaterLayerToggle"
+                                    IsChecked="True"
+                                    Content="Sông / hồ"
+                                    IsCheckedChanged="OnWaterLayerToggleChanged"/>
+
+                                <CheckBox
+                                    x:Name="BoundaryLayerToggle"
+                                    IsChecked="True"
+                                    Content="Ranh giới hành chính"
+                                    IsCheckedChanged="OnBoundaryLayerToggleChanged"/>
+
+                            </StackPanel>
+
+                        </Flyout>
+                    </Button.Flyout>
+
+                </Button>
+
                 <!--
                     Inline editor của Text Tool.
                     Canvas cùng kích thước MapCanvas nên Left/Top dùng trực tiếp

@@ -10,12 +10,14 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
+using Avalonia.Threading;
 using Avalonia.Svg.Skia;
 using PlanEditor.Core.Geometry;
 using PlanEditor.Core.Map;
 using PlanEditor.Core.Planning;
 using PlanEditor.App.Tools;
 using PlanEditor.App.Printing;
+using PlanEditor.App.Map;
 namespace PlanEditor.App.Controls;
 
 public sealed class MapCanvas : Control
@@ -27,6 +29,44 @@ public sealed class MapCanvas : Control
             ? 1.0 / _zoom
             : double.MaxValue;
     public event EventHandler? ViewChanged;
+
+    private SatelliteTileProvider? _satelliteTileProvider;
+
+    public SatelliteTileProvider? SatelliteTileProvider
+    {
+        get => _satelliteTileProvider;
+
+        set
+        {
+            if (ReferenceEquals(_satelliteTileProvider, value))
+                return;
+
+            if (_satelliteTileProvider != null)
+            {
+                _satelliteTileProvider.TileLoaded -=
+                    OnSatelliteTileLoaded;
+            }
+
+            _satelliteTileProvider = value;
+
+            if (_satelliteTileProvider != null)
+            {
+                _satelliteTileProvider.TileLoaded +=
+                    OnSatelliteTileLoaded;
+            }
+
+            InvalidateVisual();
+        }
+    }
+
+    private void OnSatelliteTileLoaded(
+        object? sender,
+        EventArgs e)
+    {
+        Dispatcher.UIThread.Post(
+            InvalidateVisual
+        );
+    }
     private MapRenderMode _renderMode = MapRenderMode.Screen;
 
     private PrintPaperSize _printPaperSize =
@@ -113,7 +153,122 @@ public sealed class MapCanvas : Control
             InvalidateVisual();
         }
     }
+
+    private MapBackgroundMode _backgroundMode =
+        MapBackgroundMode.Vector;
+
+    public MapBackgroundMode BackgroundMode
+    {
+        get => _backgroundMode;
+
+        set
+        {
+            if (_backgroundMode == value)
+                return;
+
+            _backgroundMode = value;
+            InvalidateVisual();
+        }
+    }
+
+
     
+    /*
+     * Vector layer visibility.
+     * Building visibility is filtered before render.
+     * Road labels are a presentation layer generated from Road.Name.
+     */
+    private bool _showBuildings = true;
+    private bool _showRoadLabels = false;
+    private bool _showMinorRoads = true;
+    private bool _showBarriers = true;
+    private bool _showWater = true;
+    private bool _showAdministrativeBoundaries = true;
+
+    public bool ShowBuildings
+    {
+        get => _showBuildings;
+
+        set
+        {
+            if (_showBuildings == value)
+                return;
+
+            _showBuildings = value;
+            InvalidateVisual();
+        }
+    }
+
+    public bool ShowRoadLabels
+    {
+        get => _showRoadLabels;
+
+        set
+        {
+            if (_showRoadLabels == value)
+                return;
+
+            _showRoadLabels = value;
+            InvalidateVisual();
+        }
+    }
+
+    public bool ShowMinorRoads
+    {
+        get => _showMinorRoads;
+
+        set
+        {
+            if (_showMinorRoads == value)
+                return;
+
+            _showMinorRoads = value;
+            InvalidateVisual();
+        }
+    }
+
+    public bool ShowBarriers
+    {
+        get => _showBarriers;
+
+        set
+        {
+            if (_showBarriers == value)
+                return;
+
+            _showBarriers = value;
+            InvalidateVisual();
+        }
+    }
+
+    public bool ShowWater
+    {
+        get => _showWater;
+
+        set
+        {
+            if (_showWater == value)
+                return;
+
+            _showWater = value;
+            InvalidateVisual();
+        }
+    }
+
+    public bool ShowAdministrativeBoundaries
+    {
+        get => _showAdministrativeBoundaries;
+
+        set
+        {
+            if (_showAdministrativeBoundaries == value)
+                return;
+
+            _showAdministrativeBoundaries = value;
+            InvalidateVisual();
+        }
+    }
+
     private double _fitZoom = 1.0;
     private bool _hasInitialFit;
     private MapDocument? _map;
@@ -432,9 +587,33 @@ public MapCanvas()
             );
         }
 
-        DrawMap(
-            context
-        );
+        /*
+         * Satellite Step 4:
+         * - Vector mode: render base-map hiện tại.
+         * - Satellite mode: tạm render lưới XYZ placeholder.
+         * - Print preview vẫn dùng vector map như cũ.
+         *
+         * Khi có tile ảnh thật, chỉ thay renderer placeholder
+         * bằng renderer bitmap, planning layer phía dưới không đổi.
+         */
+        if (
+            !printPreview &&
+            BackgroundMode ==
+                MapBackgroundMode.Satellite
+        )
+        {
+            SatelliteBitmapRenderer.Render(
+                this,
+                context,
+                SatelliteTileProvider
+            );
+        }
+        else
+        {
+            DrawMap(
+                context
+            );
+        }
 
         // Planning layer sits above base-map geometry.
         DrawPlanningLayer(
@@ -9976,21 +10155,33 @@ public MapCanvas()
             );
         }
 
-        // PASS 7: Administrative boundaries.
-        // Province borders first, country outline last.
-        foreach (MapFeature feature in visible)
+        // PASS 7: Road labels.
+        if (_showRoadLabels)
         {
-            if (feature.Type != MapFeatureType.Boundary)
-                continue;
-
-            if (IsCountryBoundary(feature))
-                continue;
-
-            DrawBoundary(
+            DrawRoadLabels(
                 context,
-                feature,
-                isCountry: false
+                visible
             );
+        }
+
+        // PASS 8: Administrative boundaries.
+        // Province borders first, country outline last.
+        if (_showAdministrativeBoundaries)
+        {
+            foreach (MapFeature feature in visible)
+            {
+                if (feature.Type != MapFeatureType.Boundary)
+                    continue;
+
+                if (IsCountryBoundary(feature))
+                    continue;
+
+                DrawBoundary(
+                    context,
+                    feature,
+                    isCountry: false
+                );
+            }
         }
 
         foreach (MapFeature feature in visible)
@@ -10042,8 +10233,21 @@ public MapCanvas()
         MapFeature feature,
         bool isCountry)
     {
-        if (feature.Points.Count < 3)
+        bool isPolygon =
+            feature.GeometryType ==
+                MapGeometryType.Polygon;
+
+        int minimumPointCount =
+            isPolygon
+                ? 3
+                : 2;
+
+        if (
+            feature.Points.Count <
+            minimumPointCount)
+        {
             return;
+        }
 
         string featureName =
             feature.Name ?? "";
@@ -10062,14 +10266,11 @@ public MapCanvas()
 
         /*
          * NATIONAL LOD:
-         * Ở scale toàn quốc không cần render các polygon
-         * chỉ nhỏ hơn khoảng 1 pixel.
-         *
-         * Mainland luôn giữ.
-         * Archipelago vẫn giữ nhưng loại polygon cực nhỏ
-         * để Hoàng Sa/Trường Sa không biến thành mảng nhiễu.
+         * Chỉ áp dụng cho polygon đảo/quần đảo.
          */
-        if (IsNationalMap &&
+        if (
+            isPolygon &&
+            IsNationalMap &&
             (isIsland || isArchipelago))
         {
             double screenWidth =
@@ -10097,7 +10298,8 @@ public MapCanvas()
                     ? 1.35
                     : 1.60;
 
-            if (largestScreenDimension <
+            if (
+                largestScreenDimension <
                 minimumPixels)
             {
                 return;
@@ -10115,18 +10317,25 @@ public MapCanvas()
                 feature.Points[0];
 
             /*
-             * FIX QUAN TRỌNG:
-             * isFilled = true.
+             * QUAN TRỌNG:
              *
-             * Trước đây là false nên dù DrawGeometry()
-             * có truyền brush, đất liền/đảo vẫn chỉ hiện outline.
+             * Polygon:
+             *   - có fill
+             *   - đóng figure
+             *
+             * LineString:
+             *   - KHÔNG fill
+             *   - KHÔNG đóng figure
+             *
+             * Nếu đóng LineString, Avalonia sẽ tự nối điểm cuối
+             * về điểm đầu và tạo ra các đường chéo dài giả trên bản đồ.
              */
             geo.BeginFigure(
                 WorldToScreen(
                     first.X,
                     first.Y
                 ),
-                true
+                isPolygon
             );
 
             for (
@@ -10146,7 +10355,7 @@ public MapCanvas()
             }
 
             geo.EndFigure(
-                true
+                isPolygon
             );
         }
 
@@ -10184,9 +10393,15 @@ public MapCanvas()
                 ProvinceBoundaryPen;
         }
 
-        IBrush? fill = null;
+        IBrush? fill =
+            null;
 
+        /*
+         * Chỉ polygon quốc gia mới được fill.
+         * Province boundary network là LineString nên tuyệt đối không fill.
+         */
         if (
+            isPolygon &&
             isCountry &&
             (
                 IsNationalMap ||
@@ -10330,6 +10545,296 @@ public MapCanvas()
             pen,
             geometry
         );
+    }
+
+    private void DrawRoadLabels(
+        DrawingContext context,
+        IReadOnlyList<MapFeature> visible)
+    {
+        if (MetersPerPixel > 40.0)
+            return;
+
+        var usedNames =
+            new HashSet<string>(
+                StringComparer.OrdinalIgnoreCase
+            );
+
+        var occupied =
+            new List<Rect>();
+
+        int labelCount = 0;
+
+        foreach (
+            MapFeature feature
+            in visible)
+        {
+            if (
+                feature.Type !=
+                    MapFeatureType.Road
+                ||
+                feature.Points.Count < 2
+                ||
+                !ShouldRenderRoadLabel(
+                    feature.RoadClass,
+                    MetersPerPixel
+                )
+            )
+            {
+                continue;
+            }
+
+            string name =
+                (feature.Name ?? "")
+                    .Trim();
+
+            if (
+                name.Length == 0
+                ||
+                name == "-"
+                ||
+                !usedNames.Add(name)
+            )
+            {
+                continue;
+            }
+
+            Point bestA = default;
+            Point bestB = default;
+            double bestLengthSquared = 0.0;
+
+            for (
+                int i = 1;
+                i < feature.Points.Count;
+                i++)
+            {
+                Point a =
+                    WorldToScreen(
+                        feature.Points[i - 1].X,
+                        feature.Points[i - 1].Y
+                    );
+
+                Point b =
+                    WorldToScreen(
+                        feature.Points[i].X,
+                        feature.Points[i].Y
+                    );
+
+                double dx = b.X - a.X;
+                double dy = b.Y - a.Y;
+
+                double lengthSquared =
+                    dx * dx +
+                    dy * dy;
+
+                if (
+                    lengthSquared >
+                    bestLengthSquared
+                )
+                {
+                    bestLengthSquared =
+                        lengthSquared;
+
+                    bestA = a;
+                    bestB = b;
+                }
+            }
+
+            if (bestLengthSquared < 42.0 * 42.0)
+                continue;
+
+            double fontSize =
+                GetRoadLabelFontSize(
+                    feature.RoadClass
+                );
+
+            var formatted =
+                new FormattedText(
+                    name,
+                    CultureInfo.CurrentCulture,
+                    FlowDirection.LeftToRight,
+                    new Typeface("Arial"),
+                    fontSize,
+                    new SolidColorBrush(
+                        Color.FromRgb(
+                            55,
+                            55,
+                            52
+                        )
+                    )
+                );
+
+            Point center =
+                new(
+                    (bestA.X + bestB.X) / 2.0,
+                    (bestA.Y + bestB.Y) / 2.0
+                );
+
+            const double paddingX = 4.0;
+            const double paddingY = 2.0;
+
+            Rect labelRect =
+                new(
+                    center.X -
+                        formatted.Width / 2.0 -
+                        paddingX,
+
+                    center.Y -
+                        formatted.Height / 2.0 -
+                        paddingY,
+
+                    formatted.Width +
+                        paddingX * 2.0,
+
+                    formatted.Height +
+                        paddingY * 2.0
+                );
+
+            if (
+                labelRect.Right < 0
+                ||
+                labelRect.Bottom < 0
+                ||
+                labelRect.Left > Bounds.Width
+                ||
+                labelRect.Top > Bounds.Height
+            )
+            {
+                continue;
+            }
+
+            bool overlaps = false;
+
+            foreach (
+                Rect previous
+                in occupied)
+            {
+                if (
+                    previous
+                        .Inflate(8.0)
+                        .Intersects(
+                            labelRect
+                        )
+                )
+                {
+                    overlaps = true;
+                    break;
+                }
+            }
+
+            if (overlaps)
+                continue;
+
+            context.FillRectangle(
+                new SolidColorBrush(
+                    Color.FromArgb(
+                        210,
+                        255,
+                        255,
+                        255
+                    )
+                ),
+                labelRect
+            );
+
+            context.DrawText(
+                formatted,
+                new Point(
+                    labelRect.X +
+                        paddingX,
+                    labelRect.Y +
+                        paddingY
+                )
+            );
+
+            occupied.Add(
+                labelRect
+            );
+
+            labelCount++;
+
+            if (labelCount >= 90)
+                break;
+        }
+    }
+
+    private static bool ShouldRenderRoadLabel(
+        RoadClass roadClass,
+        double metersPerPixel)
+    {
+        if (metersPerPixel > 20.0)
+        {
+            return roadClass is
+                RoadClass.Motorway or
+                RoadClass.Trunk or
+                RoadClass.Primary;
+        }
+
+        if (metersPerPixel > 8.0)
+        {
+            return roadClass is
+                RoadClass.Motorway or
+                RoadClass.Trunk or
+                RoadClass.Primary or
+                RoadClass.Secondary;
+        }
+
+        if (metersPerPixel > 3.0)
+        {
+            return roadClass is
+                RoadClass.Motorway or
+                RoadClass.Trunk or
+                RoadClass.Primary or
+                RoadClass.Secondary or
+                RoadClass.Tertiary;
+        }
+
+        if (metersPerPixel > 1.0)
+        {
+            return roadClass is
+                RoadClass.Motorway or
+                RoadClass.Trunk or
+                RoadClass.Primary or
+                RoadClass.Secondary or
+                RoadClass.Tertiary or
+                RoadClass.Residential or
+                RoadClass.Unclassified or
+                RoadClass.LivingStreet;
+        }
+
+        return roadClass is
+            RoadClass.Motorway or
+            RoadClass.Trunk or
+            RoadClass.Primary or
+            RoadClass.Secondary or
+            RoadClass.Tertiary or
+            RoadClass.Residential or
+            RoadClass.Unclassified or
+            RoadClass.LivingStreet or
+            RoadClass.Service;
+    }
+
+    private double GetRoadLabelFontSize(
+        RoadClass roadClass)
+    {
+        double baseSize =
+            roadClass switch
+            {
+                RoadClass.Motorway => 13.5,
+                RoadClass.Trunk => 13.0,
+                RoadClass.Primary => 12.5,
+                RoadClass.Secondary => 12.0,
+                RoadClass.Tertiary => 11.5,
+                _ => 11.0
+            };
+
+        if (
+            _renderMode ==
+                MapRenderMode.Print)
+        {
+            baseSize += 1.5;
+        }
+
+        return baseSize;
     }
 
     private void DrawBuilding(
@@ -10634,6 +11139,22 @@ IBrush fill =
         );
     }
 
+    private static bool IsMinorRoadClass(
+        RoadClass roadClass)
+    {
+        return roadClass is
+            RoadClass.Residential or
+            RoadClass.Unclassified or
+            RoadClass.LivingStreet or
+            RoadClass.Service or
+            RoadClass.Pedestrian or
+            RoadClass.Cycleway or
+            RoadClass.Track or
+            RoadClass.Footway or
+            RoadClass.Path or
+            RoadClass.Steps;
+    }
+
     private static bool ShouldRenderRoad(
     RoadClass roadClass,
     double metersPerPixel)
@@ -10725,21 +11246,43 @@ IBrush fill =
         switch (feature.Type)
         {
             case MapFeatureType.Road:
+                if (
+                    !_showMinorRoads &&
+                    IsMinorRoadClass(
+                        feature.RoadClass
+                    )
+                )
+                {
+                    return false;
+                }
+
                 return ShouldRenderRoad(
                     feature.RoadClass,
                     mpp
                 );
 
             case MapFeatureType.Building:
-                return mpp <= 3.0;
+                return
+                    _showBuildings &&
+                    mpp <= 3.0;
 
             case MapFeatureType.Barrier:
-                return mpp <= 2.0;
+                return
+                    _showBarriers &&
+                    mpp <= 2.0;
 
             case MapFeatureType.Water:
+                return _showWater;
+
             case MapFeatureType.Land:
-            case MapFeatureType.Boundary:
                 return true;
+
+            case MapFeatureType.Boundary:
+                return
+                    _showAdministrativeBoundaries ||
+                    IsCountryBoundary(
+                        feature
+                    );
 
             default:
                 return false;

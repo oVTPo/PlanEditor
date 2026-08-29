@@ -678,6 +678,24 @@ public sealed class SymbolLibraryService
                  * Sync đúng theo Assets để file đã xóa khỏi app
                  * không bị tồn dư trong AppData.
                  */
+                /*
+                 * Không xoá/copy lại toàn bộ BuiltIn mỗi lần khởi động.
+                 *
+                 * SvgSource có thể giữ file handle trong một khoảng thời gian;
+                 * nếu app cũ chưa nhả handle hoặc có 2 instance khởi động gần nhau,
+                 * File.Delete/File.Copy trực tiếp sẽ ném IOException.
+                 *
+                 * Chỉ đồng bộ file khi nội dung nguồn thực sự thay đổi, và copy
+                 * qua file tạm rồi replace để giảm thời gian khóa destination.
+                 */
+                var assetNames =
+                    new HashSet<string>(
+                        assetSvgFiles.Select(
+                            Path.GetFileName
+                        ),
+                        StringComparer.OrdinalIgnoreCase
+                    );
+
                 foreach (
                     string oldPath
                     in Directory.EnumerateFiles(
@@ -685,7 +703,15 @@ public sealed class SymbolLibraryService
                         "*.svg"
                     ))
                 {
-                    File.Delete(
+                    string oldName =
+                        Path.GetFileName(
+                            oldPath
+                        );
+
+                    if (assetNames.Contains(oldName))
+                        continue;
+
+                    TryDeleteManagedFile(
                         oldPath
                     );
                 }
@@ -702,10 +728,9 @@ public sealed class SymbolLibraryService
                             )
                         );
 
-                    File.Copy(
+                    SyncManagedFile(
                         assetPath,
-                        destination,
-                        overwrite: true
+                        destination
                     );
                 }
 
@@ -726,10 +751,9 @@ public sealed class SymbolLibraryService
                         sourceMetadata
                     ))
                 {
-                    File.Copy(
+                    SyncManagedFile(
                         sourceMetadata,
-                        destinationMetadata,
-                        overwrite: true
+                        destinationMetadata
                     );
                 }
                 else if (
@@ -737,7 +761,7 @@ public sealed class SymbolLibraryService
                         destinationMetadata
                     ))
                 {
-                    File.Delete(
+                    TryDeleteManagedFile(
                         destinationMetadata
                     );
                 }
@@ -765,6 +789,183 @@ public sealed class SymbolLibraryService
         );
     }
 
+
+    private static void SyncManagedFile(
+        string source,
+        string destination)
+    {
+        /*
+         * Nếu destination đã giống source thì không đụng vào file.
+         * Đây là trường hợp bình thường ở hầu hết lần khởi động.
+         */
+        try
+        {
+            if (
+                File.Exists(destination) &&
+                FilesAreEqual(
+                    source,
+                    destination
+                ))
+            {
+                return;
+            }
+        }
+        catch (IOException)
+        {
+            /*
+             * Nếu file đang bị process khác giữ, giữ bản hiện tại để app
+             * vẫn khởi động được. Lần khởi động sau sẽ đồng bộ lại.
+             */
+            return;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return;
+        }
+
+        string temp =
+            destination +
+            ".tmp-" +
+            Environment.ProcessId +
+            "-" +
+            Guid.NewGuid()
+                .ToString("N");
+
+        try
+        {
+            File.Copy(
+                source,
+                temp,
+                overwrite: true
+            );
+
+            try
+            {
+                File.Move(
+                    temp,
+                    destination,
+                    overwrite: true
+                );
+            }
+            catch (IOException)
+            {
+                /*
+                 * Destination đang bị giữ bởi instance khác.
+                 * Không làm app crash vì BuiltIn hiện tại vẫn dùng được.
+                 */
+            }
+            catch (UnauthorizedAccessException)
+            {
+            }
+        }
+        finally
+        {
+            try
+            {
+                if (File.Exists(temp))
+                {
+                    File.Delete(
+                        temp
+                    );
+                }
+            }
+            catch
+            {
+            }
+        }
+    }
+
+    private static bool FilesAreEqual(
+        string first,
+        string second)
+    {
+        var a =
+            new FileInfo(
+                first
+            );
+
+        var b =
+            new FileInfo(
+                second
+            );
+
+        if (a.Length != b.Length)
+            return false;
+
+        using FileStream left =
+            new(
+                first,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.ReadWrite
+            );
+
+        using FileStream right =
+            new(
+                second,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.ReadWrite
+            );
+
+        Span<byte> leftBuffer =
+            stackalloc byte[4096];
+
+        Span<byte> rightBuffer =
+            stackalloc byte[4096];
+
+        while (true)
+        {
+            int leftRead =
+                left.Read(
+                    leftBuffer
+                );
+
+            int rightRead =
+                right.Read(
+                    rightBuffer
+                );
+
+            if (leftRead != rightRead)
+                return false;
+
+            if (leftRead == 0)
+                return true;
+
+            if (
+                !leftBuffer[..leftRead]
+                    .SequenceEqual(
+                        rightBuffer[..rightRead]
+                    )
+            )
+            {
+                return false;
+            }
+        }
+    }
+
+    private static void TryDeleteManagedFile(
+        string path)
+    {
+        try
+        {
+            if (File.Exists(path))
+            {
+                File.Delete(
+                    path
+                );
+            }
+        }
+        catch (IOException)
+        {
+            /*
+             * Không để một SVG đang được process khác giữ làm app crash.
+             */
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
+    }
 
     private void WriteBuiltIn(
         string fileName,

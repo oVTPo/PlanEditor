@@ -1,28 +1,86 @@
-# Build outputs
-bin/
-obj/
-dist/
-build/
-publish/
-artifacts/
+# ============================================================
+# PA-S - BUILD / GENERATED OUTPUT
+# ============================================================
 
-# macOS packages
+# .NET build output
+**/bin/
+**/obj/
+
+# PA-S packaging / release output
+/build/
+/dist/
+
+# macOS / installer artifacts
+*.app
 *.dmg
 *.pkg
+
+# Archives / temporary exports
 *.zip
+*.7z
+*.tar
+*.tar.gz
 
-# Large map/runtime data
-**/MapData/*.db
-**/MapData/*.db-shm
-**/MapData/*.db-wal
+# Debug symbols
+*.pdb
 
-# Raw map sources
-MapSource/
-*.osm.pbf
-*.geojsonseq
+# Local backups / temp
+*.bak
+*.backup
+*.tmp
+*.temp
 
-# Private symbol assets
-PlanEditor.App/Assets/Symbols/
 
-# macOS
-.DS_Store
+# ============================================================
+# PA-S - LARGE MAP RUNTIME DATA
+# ============================================================
+
+# Main offline vector/search databases
+/PlanEditor.App/MapData/*.db
+/PlanEditor.App/MapData/*.db-shm
+/PlanEditor.App/MapData/*.db-wal
+
+# MBTiles directly under MapData
+/PlanEditor.App/MapData/*.mbtiles
+
+# Satellite data, including Detail / LOD0 / LOD1 / LOD2
+/PlanEditor.App/MapData/Satellite/
+
+# Generated / intermediate raster map data
+/PlanEditor.App/MapData/**/*.vrt
+/PlanEditor.App/MapData/**/*.tif
+/PlanEditor.App/MapData/**/*.tiff
+/PlanEditor.App/MapData/**/*.jp2
+
+# Generated boundary dataset
+/PlanEditor.App/MapData/vietnam-admin-boundaries.json
+
+
+# ============================================================
+# PA-S - LARGE MAP SOURCE / INTERMEDIATE DATA
+# ============================================================
+
+# Keep MapSource folder available for scripts/configs,
+# but ignore heavy downloaded/generated map source files.
+/MapSource/*.osm.pbf
+/MapSource/*.pbf
+/MapSource/*.geojsonseq
+/MapSource/*.mbtiles
+/MapSource/*.db
+/MapSource/*.db-shm
+/MapSource/*.db-wal
+/MapSource/*.vrt
+/MapSource/*.tif
+/MapSource/*.tiff
+/MapSource/*.jp2
+
+
+# ============================================================
+# IMPORTANT
+# ============================================================
+
+# DO NOT use:
+# *.app/
+#
+# On case-insensitive macOS filesystems it can conflict with
+# the source directory name "PlanEditor.App".

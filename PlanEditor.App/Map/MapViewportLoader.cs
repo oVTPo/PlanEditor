@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Threading;
 using PlanEditor.App.Controls;
@@ -7,36 +8,86 @@ using PlanEditor.Core.Map;
 
 namespace PlanEditor.App.Map;
 
-public sealed class MapViewportLoader : IDisposable
+public sealed class MapViewportLoader :
+    IDisposable
 {
-    // Hysteresis tránh nhảy qua lại mode khi scale dao động quanh ngưỡng.
-    private const double EnterProvinceMpp = 85.0;
-    private const double ExitProvinceMpp = 72.0;
+    /*
+     * 3 tầng dữ liệu:
+     *
+     * Detail:
+     *   < ~82 m/px
+     *
+     * Province overview:
+     *   ~82 .. 520 m/px
+     *
+     * National overview:
+     *   >= ~520 m/px
+     *
+     * Có hysteresis để trackpad không làm loader đổi mode liên tục.
+     */
+    private const double EnterProvinceMpp =
+        82.0;
 
-    private const double EnterNationalMpp = 600.0;
-    private const double ExitNationalMpp = 450.0;
+    private const double ExitProvinceMpp =
+        68.0;
 
-    private const int LayoutRetryDelayMs = 120;
-    private const int MaxLayoutRetries = 20;
+    private const double EnterNationalMpp =
+        520.0;
+
+    private const double ExitNationalMpp =
+        410.0;
+
     private readonly MapCanvas _canvas;
     private readonly VietnamMapStore _store;
-    private readonly AdminBoundaryStore _adminStore;
+    private readonly AdminBoundaryStore
+        _adminStore;
+
+    /*
+     * Không cho nhiều SQLite LoadArea chạy song song.
+     * Những query cũ vẫn có thể hoàn thành nhưng sẽ bị version check bỏ đi.
+     */
+    private readonly SemaphoreSlim
+        _detailLoadGate =
+            new(
+                1,
+                1
+            );
 
     private int _requestVersion;
     private bool _disposed;
 
-    private WorldBounds? _loadedBounds;
-    private int _loadedLod = -1;
-    private LoadMode _activeMode = LoadMode.None;
+    private WorldBounds?
+        _loadedBounds;
+
+    private int _loadedLod =
+        -1;
+
+    private LoadMode _activeMode =
+        LoadMode.None;
+
+    /*
+     * AdminBoundaryStore vốn đã cache,
+     * nhưng giữ reference tại loader để bỏ cả lock/method call khi chuyển mode.
+     */
+    private MapDocument?
+        _provinceOverview;
+
+    private MapDocument?
+        _nationalOverview;
 
     public MapViewportLoader(
         MapCanvas canvas,
         VietnamMapStore store,
         AdminBoundaryStore adminStore)
     {
-        _canvas = canvas;
-        _store = store;
-        _adminStore = adminStore;
+        _canvas =
+            canvas;
+
+        _store =
+            store;
+
+        _adminStore =
+            adminStore;
 
         _canvas.ViewChanged +=
             OnViewChanged;
@@ -50,28 +101,53 @@ public sealed class MapViewportLoader : IDisposable
         int version =
             ++_requestVersion;
 
-        Console.WriteLine(
-            $"[MAP LOADER] Request #{version} | " +
-            $"canvas={_canvas.Bounds.Width:0}x{_canvas.Bounds.Height:0} | " +
-            $"mpp={_canvas.MetersPerPixel:0.00}"
-        );
-
+        /*
+         * 190 ms:
+         * nhanh hơn bản 300 ms nhưng vẫn đủ gom các event
+         * pan/zoom liên tiếp của trackpad.
+         */
         DispatcherTimer.RunOnce(
             () =>
             {
-                if (_disposed ||
-                    version != _requestVersion)
+                if (
+                    _disposed ||
+                    version !=
+                        _requestVersion)
                 {
                     return;
                 }
 
-                _ = LoadCurrentViewportAsync(
-                    version,
-                    retryCount: 0
-                );
+                _ =
+                    LoadCurrentViewportAsync(
+                        version
+                    );
             },
-            TimeSpan.FromMilliseconds(150)
+            TimeSpan.FromMilliseconds(
+                190
+            )
         );
+    }
+
+    /*
+     * Dùng khi vừa mở project:
+     * - bỏ debounce 190 ms;
+     * - bỏ overview mode đúng 1 lần;
+     * - query trực tiếp viewport hiện tại để đường xá xuất hiện ngay.
+     */
+    public void RequestReloadImmediate(
+        bool forceDetail = false)
+    {
+        if (_disposed)
+            return;
+
+        int version =
+            ++_requestVersion;
+
+        _ =
+            LoadCurrentViewportAsync(
+                version,
+                forceDetail
+            );
     }
 
     private void OnViewChanged(
@@ -84,63 +160,13 @@ public sealed class MapViewportLoader : IDisposable
     private async Task
         LoadCurrentViewportAsync(
             int version,
-            int retryCount)
+            bool forceDetail = false)
     {
-        if (_disposed ||
-            version != _requestVersion)
+        if (
+            _disposed ||
+            _canvas.Bounds.Width <= 0 ||
+            _canvas.Bounds.Height <= 0)
         {
-            return;
-        }
-
-        /*
-         * StartupOverlay che MapCanvas nhưng MapCanvas có thể chưa nhận
-         * kích thước layout hợp lệ ngay trong tick đầu tiên khi overlay ẩn.
-         * Bản cũ return vĩnh viễn ở đây => map trắng cho đến khi user pan/zoom.
-         *
-         * Bản này retry ngắn hạn để đợi layout hoàn tất.
-         */
-        if (_canvas.Bounds.Width <= 1 ||
-            _canvas.Bounds.Height <= 1)
-        {
-            if (retryCount >= MaxLayoutRetries)
-            {
-                Console.Error.WriteLine(
-                    $"[MAP LOADER] Canvas vẫn chưa có layout sau " +
-                    $"{MaxLayoutRetries} lần retry. " +
-                    $"bounds={_canvas.Bounds.Width:0}x{_canvas.Bounds.Height:0}"
-                );
-
-                return;
-            }
-
-            int nextRetry =
-                retryCount + 1;
-
-            Console.WriteLine(
-                $"[MAP LOADER] Waiting for canvas layout " +
-                $"({nextRetry}/{MaxLayoutRetries}) | " +
-                $"bounds={_canvas.Bounds.Width:0}x{_canvas.Bounds.Height:0}"
-            );
-
-            DispatcherTimer.RunOnce(
-                () =>
-                {
-                    if (_disposed ||
-                        version != _requestVersion)
-                    {
-                        return;
-                    }
-
-                    _ = LoadCurrentViewportAsync(
-                        version,
-                        nextRetry
-                    );
-                },
-                TimeSpan.FromMilliseconds(
-                    LayoutRetryDelayMs
-                )
-            );
-
             return;
         }
 
@@ -150,108 +176,153 @@ public sealed class MapViewportLoader : IDisposable
         double metersPerPixel =
             _canvas.MetersPerPixel;
 
-        Console.WriteLine(
-            $"[MAP LOADER] Load #{version} | " +
-            $"bounds={_canvas.Bounds.Width:0}x{_canvas.Bounds.Height:0} | " +
-            $"mpp={metersPerPixel:0.00} | " +
-            $"world=({viewport.MinX:0},{viewport.MinY:0})-" +
-            $"({viewport.MaxX:0},{viewport.MaxY:0})"
-        );
+        /*
+         * NATIONAL OVERVIEW
+         *
+         * forceDetail=true chỉ dùng lúc vừa mở project:
+         * bỏ qua overview để nạp đường xá ngay.
+         */
+        if (
+            !forceDetail &&
+            _activeMode ==
+                LoadMode.National)
+        {
+            if (
+                metersPerPixel >
+                    ExitNationalMpp)
+            {
+                return;
+            }
+
+            await LoadOverviewAsync(
+                version,
+                LoadMode.Province
+            );
+
+            return;
+        }
+
+        if (
+            !forceDetail &&
+            metersPerPixel >=
+                EnterNationalMpp)
+        {
+            if (
+                _activeMode ==
+                    LoadMode.National)
+            {
+                return;
+            }
+
+            await LoadOverviewAsync(
+                version,
+                LoadMode.National
+            );
+
+            return;
+        }
 
         /*
-         * Chọn mode có hysteresis:
-         *
-         * Detail -> Province : >= 85
-         * Province -> Detail : <= 72
-         *
-         * Province -> National : >= 160
-         * National -> Province : <= 135
-         *
-         * Tránh rung mode khi trackpad dao động quanh 80/150.
+         * PROVINCE OVERVIEW
          */
-        if (_activeMode ==
-            LoadMode.National)
+        if (
+            !forceDetail &&
+            _activeMode ==
+                LoadMode.Province)
         {
-            if (metersPerPixel >
-                ExitNationalMpp)
-            {
-                return;
-            }
-
-            await LoadOverviewAsync(
-                version,
-                metersPerPixel,
-                LoadMode.Province,
-                fitNationalView: false
-            );
-
-            return;
-        }
-
-        if (metersPerPixel >=
-            EnterNationalMpp)
-        {
-            await LoadOverviewAsync(
-                version,
-                metersPerPixel,
-                LoadMode.National,
-                fitNationalView: true
-            );
-
-            return;
-        }
-
-        if (_activeMode ==
-            LoadMode.Province)
-        {
-            if (metersPerPixel >
-                ExitProvinceMpp)
+            if (
+                metersPerPixel >
+                    ExitProvinceMpp)
             {
                 return;
             }
         }
-        else if (metersPerPixel >=
-                 EnterProvinceMpp)
+        else if (
+            !forceDetail &&
+            metersPerPixel >=
+                EnterProvinceMpp)
         {
             await LoadOverviewAsync(
                 version,
-                metersPerPixel,
-                LoadMode.Province,
-                fitNationalView: false
+                LoadMode.Province
             );
 
             return;
         }
 
-        // Quay từ overview xuống detail.
-        if (_activeMode !=
-            LoadMode.Detail)
+        /*
+         * DETAIL MODE
+         */
+        if (forceDetail)
         {
-            _loadedBounds = null;
-            _loadedLod = -1;
+            /*
+             * Project vừa mở có camera mới.
+             * Xóa cache bounds cũ để chắc chắn query đúng viewport project.
+             */
+            _loadedBounds =
+                null;
+
+            _loadedLod =
+                -1;
+
+            _activeMode =
+                LoadMode.Detail;
         }
 
-        _activeMode =
-            LoadMode.Detail;
+        if (
+            _activeMode !=
+                LoadMode.Detail)
+        {
+            _loadedBounds =
+                null;
+
+            _loadedLod =
+                -1;
+
+            _activeMode =
+                LoadMode.Detail;
+        }
 
         int lod =
             GetLodKey(
                 metersPerPixel
             );
 
-        if (_loadedBounds.HasValue &&
+        /*
+         * Viewport vẫn còn nằm trong vùng đã cache:
+         * không query SQLite.
+         */
+        if (
+            _loadedBounds.HasValue &&
             _loadedLod == lod &&
             Contains(
                 _loadedBounds.Value,
-                viewport))
+                viewport
+            ))
         {
             return;
         }
 
+        /*
+         * Buffer nhỏ hơn bản trước.
+         *
+         * Bản cũ:
+         *   >20 m/px = 30%
+         *   <=20     = 55%
+         *
+         * Bản này:
+         *   40..82   = 12%
+         *   15..40   = 18%
+         *   <15      = 28%
+         *
+         * Vẫn đủ dư cho pan nhưng giảm mạnh số feature phải đọc.
+         */
         double bufferFactor =
-            metersPerPixel > 20.0
-                ? 0.30
-                : 0.55;
+            metersPerPixel > 40.0
+                ? 0.12
+                : metersPerPixel > 15.0
+                    ? 0.18
+                    : 0.28;
 
         WorldBounds buffered =
             Expand(
@@ -259,62 +330,109 @@ public sealed class MapViewportLoader : IDisposable
                 bufferFactor
             );
 
+        await _detailLoadGate
+            .WaitAsync();
+
         try
         {
-            Console.WriteLine(
-                $"[MAP LOADER] DETAIL query start | " +
-                $"lod={lod} | buffer={bufferFactor:0.00}"
-            );
+            /*
+             * Có request mới trong lúc chờ gate:
+             * bỏ luôn query cũ trước khi chạm SQLite.
+             */
+            if (
+                _disposed ||
+                version !=
+                    _requestVersion)
+            {
+                return;
+            }
+
+            /*
+             * Khi mở project, dù camera fit hơi rộng,
+             * vẫn query road-capable LOD tối đa 40 m/px.
+             *
+             * Không đổi camera, chỉ đổi mức dữ liệu dùng cho query.
+             */
+            double queryMetersPerPixel =
+                forceDetail
+                    ? Math.Min(
+                        metersPerPixel,
+                        40.0
+                    )
+                    : metersPerPixel;
 
             MapDocument map =
                 await Task.Run(
                     () =>
                         _store.LoadArea(
                             buffered,
-                            metersPerPixel
+                            queryMetersPerPixel
                         )
                 );
 
-            if (_disposed ||
-                version != _requestVersion)
+            if (
+                _disposed ||
+                version !=
+                    _requestVersion)
             {
                 return;
             }
 
-            await Dispatcher.UIThread.InvokeAsync(
-                () =>
-                {
-                    if (_disposed ||
-                        version != _requestVersion)
-                    {
-                        return;
-                    }
+            /*
+             * Không bao giờ thay canvas bằng document rỗng.
+             * Điều này tránh hiện tượng zoom xa/giao ngưỡng rồi mất toàn bộ map.
+             */
+            if (
+                map.Features.Count == 0)
+            {
+                Console.WriteLine(
+                    $"[MAP LOADER] " +
+                    $"empty detail result ignored | " +
+                    $"{metersPerPixel:0.00} m/px"
+                );
 
-                    _canvas.SetMap(
-                        map,
-                        preserveView: true
-                    );
+                _loadedBounds =
+                    null;
 
-                    if (map.Features.Count == 0)
+                _loadedLod =
+                    -1;
+
+                return;
+            }
+
+            await Dispatcher.UIThread
+                .InvokeAsync(
+                    () =>
                     {
-                        Console.Error.WriteLine(
-                            "[MAP LOADER] WARNING: query trả về 0 feature."
+                        if (
+                            _disposed ||
+                            version !=
+                                _requestVersion)
+                        {
+                            return;
+                        }
+
+                        _canvas.SetMap(
+                            map,
+                            preserveView:
+                                true
+                        );
+
+                        _loadedBounds =
+                            buffered;
+
+                        _loadedLod =
+                            lod;
+
+                        Console.WriteLine(
+                            $"Viewport map loaded: " +
+                            $"{map.Features.Count:N0} features | " +
+                            $"{metersPerPixel:0.00} m/px | " +
+                            $"buffer={bufferFactor:0.00} | " +
+                            $"forceDetail={forceDetail}"
                         );
                     }
-
-                    _loadedBounds =
-                        buffered;
-
-                    _loadedLod =
-                        lod;
-
-                    Console.WriteLine(
-                        $"Viewport map loaded: " +
-                        $"{map.Features.Count:N0} features, " +
-                        $"{metersPerPixel:0.00} m/px"
-                    );
-                }
-            );
+                );
         }
         catch (Exception ex)
         {
@@ -322,87 +440,118 @@ public sealed class MapViewportLoader : IDisposable
                 $"Viewport load failed: {ex}"
             );
         }
+        finally
+        {
+            _detailLoadGate.Release();
+        }
     }
 
-    private async Task LoadOverviewAsync(
-        int version,
-        double metersPerPixel,
-        LoadMode mode,
-        bool fitNationalView)
+    private async Task
+        LoadOverviewAsync(
+            int version,
+            LoadMode mode)
     {
         try
         {
-            MapDocument map =
-                await Task.Run(
-                    () =>
-                        mode ==
-                            LoadMode.National
-                            ? _adminStore
-                                .LoadNationalOverview()
-                            : _adminStore
-                                .LoadProvinceOverview()
-                );
+            MapDocument map;
 
-            if (_disposed ||
-                version != _requestVersion)
+            if (
+                mode ==
+                    LoadMode.National)
+            {
+                if (
+                    _nationalOverview ==
+                    null)
+                {
+                    _nationalOverview =
+                        await Task.Run(
+                            () =>
+                                _adminStore
+                                    .LoadNationalOverview()
+                        );
+                }
+
+                map =
+                    _nationalOverview;
+            }
+            else
+            {
+                if (
+                    _provinceOverview ==
+                    null)
+                {
+                    _provinceOverview =
+                        await Task.Run(
+                            () =>
+                                _adminStore
+                                    .LoadProvinceOverview()
+                        );
+                }
+
+                map =
+                    _provinceOverview;
+            }
+
+            if (
+                _disposed ||
+                version !=
+                    _requestVersion)
             {
                 return;
             }
 
-            await Dispatcher.UIThread.InvokeAsync(
-                () =>
-                {
-                    if (_disposed ||
-                        version != _requestVersion)
-                    {
-                        return;
-                    }
+            if (
+                map.Features.Count == 0)
+            {
+                Console.WriteLine(
+                    $"[MAP LOADER] " +
+                    $"{mode} overview empty; " +
+                    $"keeping current map."
+                );
 
-                    _canvas.SetMap(
-                        map,
-                        preserveView: true
-                    );
+                return;
+            }
 
-                    /*
-                     * Khi vừa chuyển sang National:
-                     * camera cũ có thể đang centered ở Cần Thơ/
-                     * một tỉnh bất kỳ. Recenter theo bounds
-                     * của national map để không bị "mất map".
-                     */
-                    if (fitNationalView &&
-                        map.TryGetBounds(
-                            out WorldPoint nationalMin,
-                            out WorldPoint nationalMax))
+            await Dispatcher.UIThread
+                .InvokeAsync(
+                    () =>
                     {
-                        _canvas.FitWorldBounds(
-                            new WorldBounds(
-                                nationalMin.X,
-                                nationalMin.Y,
-                                nationalMax.X,
-                                nationalMax.Y
-                            ),
-                            minimumMetersPerPixel: 0.25,
-                            paddingRatio: 0.10
+                        if (
+                            _disposed ||
+                            version !=
+                                _requestVersion)
+                        {
+                            return;
+                        }
+
+                        /*
+                         * Không FitWorldBounds tại đây.
+                         * Loader chỉ thay dữ liệu; camera do người dùng/startup quản lý.
+                         *
+                         * Việc auto-fit khi chuyển mode trước đây có thể kích thêm
+                         * ViewChanged và tạo cảm giác map "nhảy/load lại".
+                         */
+                        _canvas.SetMap(
+                            map,
+                            preserveView:
+                                true
+                        );
+
+                        _activeMode =
+                            mode;
+
+                        _loadedBounds =
+                            null;
+
+                        _loadedLod =
+                            -1;
+
+                        Console.WriteLine(
+                            $"{mode} overview loaded: " +
+                            $"{map.Features.Count:N0} features"
                         );
                     }
-
-                    _activeMode = mode;
-                    _loadedBounds = null;
-                    _loadedLod = -1;
-
-                    string label =
-                        mode ==
-                            LoadMode.National
-                            ? "National overview"
-                            : "Province overview";
-
-                    Console.WriteLine(
-                        $"{label} loaded: " +
-                        $"{map.Features.Count:N0} boundary parts, " +
-                        $"{metersPerPixel:0.00} m/px"
-                    );
-                }
-            );
+                );
         }
         catch (Exception ex)
         {
@@ -452,22 +601,19 @@ public sealed class MapViewportLoader : IDisposable
     private static int GetLodKey(
         double metersPerPixel)
     {
-        if (metersPerPixel > 300.0)
+        if (metersPerPixel > 40.0)
             return 0;
 
-        if (metersPerPixel > 80.0)
+        if (metersPerPixel > 15.0)
             return 1;
 
-        if (metersPerPixel > 20.0)
+        if (metersPerPixel > 5.0)
             return 2;
 
-        if (metersPerPixel > 5.0)
+        if (metersPerPixel > 2.0)
             return 3;
 
-        if (metersPerPixel > 2.0)
-            return 4;
-
-        return 5;
+        return 4;
     }
 
     private enum LoadMode
@@ -483,9 +629,12 @@ public sealed class MapViewportLoader : IDisposable
         if (_disposed)
             return;
 
-        _disposed = true;
+        _disposed =
+            true;
 
         _canvas.ViewChanged -=
             OnViewChanged;
+
+        _detailLoadGate.Dispose();
     }
 }

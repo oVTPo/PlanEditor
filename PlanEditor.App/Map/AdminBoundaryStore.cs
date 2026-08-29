@@ -10,6 +10,7 @@ namespace PlanEditor.App.Map;
 public sealed class AdminBoundaryStore
 {
     private readonly string _overviewPath;
+    private readonly string _provinceBoundaryPath;
     private readonly string _nationalMasterPath;
     private readonly string _nationalExtraPath;
     private readonly object _sync = new();
@@ -20,6 +21,7 @@ public sealed class AdminBoundaryStore
 
     public AdminBoundaryStore(
         string? overviewPath = null,
+        string? provinceBoundaryPath = null,
         string? nationalMasterPath = null,
         string? nationalExtraPath = null)
     {
@@ -28,6 +30,13 @@ public sealed class AdminBoundaryStore
                 AppContext.BaseDirectory,
                 "MapData",
                 "vietnam-overview.json"
+            );
+
+        provinceBoundaryPath ??=
+            Path.Combine(
+                AppContext.BaseDirectory,
+                "MapData",
+                "vietnam-admin-boundaries.json"
             );
 
         nationalMasterPath ??=
@@ -45,6 +54,7 @@ public sealed class AdminBoundaryStore
             );
 
         _overviewPath = overviewPath;
+        _provinceBoundaryPath = provinceBoundaryPath;
         _nationalMasterPath = nationalMasterPath;
         _nationalExtraPath = nationalExtraPath;
     }
@@ -56,31 +66,67 @@ public sealed class AdminBoundaryStore
             if (_provinceOverview != null)
                 return _provinceOverview;
 
+            /*
+             * Nguồn chuẩn cho ranh giới tỉnh:
+             * vietnam-admin-boundaries.json
+             *
+             * File này là boundary network đã topology hóa:
+             * mỗi ranh giới chung chỉ tồn tại MỘT lần.
+             *
+             * Không còn render outline của 34 polygon tỉnh.
+             */
+            if (File.Exists(_provinceBoundaryPath))
+            {
+                string json =
+                    File.ReadAllText(
+                        _provinceBoundaryPath
+                    );
+
+                ProvinceBoundaryNetworkFile? network =
+                    JsonSerializer.Deserialize<ProvinceBoundaryNetworkFile>(
+                        json,
+                        JsonOptions()
+                    );
+
+                if (network == null)
+                {
+                    throw new InvalidDataException(
+                        $"Không đọc được province boundary network: " +
+                        $"{_provinceBoundaryPath}"
+                    );
+                }
+
+                _provinceOverview =
+                    BuildProvinceBoundaryNetwork(
+                        network.Parts
+                    );
+
+                Console.WriteLine(
+                    $"Administrative boundary network loaded: " +
+                    $"{_provinceOverview.Features.Count:N0} unique lines"
+                );
+
+                return _provinceOverview;
+            }
+
+            /*
+             * Fallback chỉ để project vẫn mở nếu file network chưa được build.
+             * Khi có network thì nhánh này hoàn toàn không được dùng.
+             */
+            Console.WriteLine(
+                "Province boundary network chưa có; " +
+                "fallback về polygon overview cũ."
+            );
+
             OverviewBoundaryFile source =
                 LoadSource();
 
-            /*
-             * PROVINCE OVERVIEW chỉ dùng 34 polygon tỉnh.
-             *
-             * Không đưa country polygon cũ từ vietnam-overview.json
-             * vào layer này nữa. Country geometry cũ có thể tạo
-             * các cạnh đóng polygon dài/chéo và che sai ranh tỉnh
-             * ở khoảng 300-450 m/px.
-             *
-             * National map đã có nguồn riêng:
-             * vietnam-national.json
-             */
             _provinceOverview =
                 BuildDocument(
                     source.Parts,
                     includeProvince: true,
                     includeNational: false
                 );
-
-            Console.WriteLine(
-                $"Province overview loaded: " +
-                $"{_provinceOverview.Features.Count:N0} boundary parts"
-            );
 
             return _provinceOverview;
         }
@@ -263,6 +309,82 @@ public sealed class AdminBoundaryStore
         return _source;
     }
 
+    private static MapDocument BuildProvinceBoundaryNetwork(
+        IEnumerable<ProvinceBoundaryNetworkPart> parts)
+    {
+        var document =
+            new MapDocument();
+
+        foreach (
+            ProvinceBoundaryNetworkPart part
+            in parts)
+        {
+            if (
+                part.Points == null ||
+                part.Points.Length < 2
+            )
+            {
+                continue;
+            }
+
+            var feature =
+                new MapFeature
+                {
+                    Type =
+                        MapFeatureType.Boundary,
+
+                    /*
+                     * QUAN TRỌNG:
+                     * Đây là LINE thật, không phải polygon đóng.
+                     */
+                    GeometryType =
+                        MapGeometryType.LineString,
+
+                    Name =
+                        string.Equals(
+                            part.Kind,
+                            "country-boundary",
+                            StringComparison.OrdinalIgnoreCase
+                        )
+                            ? part.Name
+                            : $"province-boundary:{part.Name}"
+                };
+
+            foreach (
+                double[] point
+                in part.Points)
+            {
+                if (
+                    point == null ||
+                    point.Length < 2
+                )
+                {
+                    continue;
+                }
+
+                feature.Points.Add(
+                    new WorldPoint(
+                        point[0],
+                        point[1]
+                    )
+                );
+            }
+
+            if (feature.Points.Count < 2)
+                continue;
+
+            feature.UpdateBounds();
+
+            document.Features.Add(
+                feature
+            );
+        }
+
+        document.BuildSpatialIndex();
+
+        return document;
+    }
+
     private static MapDocument BuildDocument(
         IEnumerable<OverviewBoundaryPart> parts,
         bool includeProvince,
@@ -388,6 +510,32 @@ public sealed class AdminBoundaryStore
         {
             PropertyNameCaseInsensitive = true
         };
+    }
+
+    private sealed class ProvinceBoundaryNetworkFile
+    {
+        public int Version { get; set; }
+
+        public string Type { get; set; } = "";
+
+        public List<ProvinceBoundaryNetworkPart> Parts
+        {
+            get;
+            set;
+        } = new();
+    }
+
+    private sealed class ProvinceBoundaryNetworkPart
+    {
+        public string Kind { get; set; } = "";
+
+        public string Name { get; set; } = "";
+
+        public double[][] Points
+        {
+            get;
+            set;
+        } = Array.Empty<double[]>();
     }
 
     private sealed class OverviewBoundaryFile
