@@ -2382,6 +2382,9 @@ _projectFolderExplorer
         AreaFillPropertyPanel.IsVisible =
             false;
 
+        BridgePropertyPanel.IsVisible =
+            false;
+
         if (selected == null)
             return;
 
@@ -2990,6 +2993,87 @@ _projectFolderExplorer
             MapToolKind.DoorDouble
         );
 
+        UpdatePlanningUi();
+    }
+
+
+    private void OnBridgeNormalToolClick(
+        object? sender,
+        Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        MapCanvas.SetPlanningTool(
+            MapToolKind.BridgeNormal
+        );
+
+        UpdatePlanningUi();
+    }
+
+    private void OnBridgeIronToolClick(
+        object? sender,
+        Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        MapCanvas.SetPlanningTool(
+            MapToolKind.BridgeIron
+        );
+        UpdatePlanningUi();
+    }
+
+
+
+    private void OnBridgeSubmersibleToolClick(
+        object? sender,
+        Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        MapCanvas.SetPlanningTool(
+            MapToolKind.BridgeSubmersible
+        );
+        UpdatePlanningUi();
+    }
+
+
+
+    private void OnBridgeSuspensionToolClick(
+        object? sender,
+        Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        MapCanvas.SetPlanningTool(
+            MapToolKind.BridgeSuspension
+        );
+        UpdatePlanningUi();
+    }
+
+
+
+    private void OnBridgePontoonToolClick(
+        object? sender,
+        Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        MapCanvas.SetPlanningTool(
+            MapToolKind.BridgePontoon
+        );
+        UpdatePlanningUi();
+    }
+
+
+
+
+    private void OnBridgeBambooToolClick(
+        object? sender,
+        Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        MapCanvas.SetPlanningTool(
+            MapToolKind.BridgeBamboo
+        );
+        UpdatePlanningUi();
+    }
+
+    private void OnBridgeDestroyedToolClick(
+        object? sender,
+        Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        MapCanvas.SetPlanningTool(
+            MapToolKind.BridgeDestroyed
+        );
         UpdatePlanningUi();
     }
 
@@ -4021,6 +4105,18 @@ _projectFolderExplorer
                 MapToolKind.DoorDouble =>
                     "Cửa 2 cánh",
 
+                MapToolKind.BridgeIron =>
+                    "Cầu cơ bản",
+
+                MapToolKind.BridgeSubmersible =>
+                    "Cầu dầm",
+
+                MapToolKind.BridgeSuspension =>
+                    "Cầu giàn",
+
+                MapToolKind.BridgePontoon =>
+                    "Cầu phao",
+
                 _ =>
                     "Chọn"
             };
@@ -4059,6 +4155,50 @@ _projectFolderExplorer
                     : $"Công cụ: {toolText}\n\n" +
                       "Chưa chọn đối tượng";
         }
+        else if (
+            selected is PlanningBridge bridge)
+        {
+            PlanningPropertyText.IsVisible =
+                false;
+
+            ShapeStylePropertyPanel.IsVisible =
+                false;
+
+            BridgePropertyPanel.IsVisible =
+                true;
+
+            _updatingBridgeProperties =
+                true;
+
+            try
+            {
+                BridgeKindComboBox.SelectedIndex =
+                    bridge.BridgeKind switch
+                    {
+                        PlanningBridgeKind.Iron => 1,
+                        PlanningBridgeKind.Submersible => 2,
+                        PlanningBridgeKind.Suspension => 3,
+                        PlanningBridgeKind.Bamboo => 4,
+                        PlanningBridgeKind.Pontoon => 5,
+                        PlanningBridgeKind.Destroyed => 6,
+                        _ => 0
+                    };
+
+                BridgeWidthEditor.Value =
+                    (decimal)
+                    bridge.BridgeWidthPixels;
+
+                BridgeStrokeWidthEditor.Value =
+                    (decimal)
+                    bridge.WidthPixels;
+            }
+            finally
+            {
+                _updatingBridgeProperties =
+                    false;
+            }
+        }
+
         else if (
             selected is PlanningPolyline line)
         {
@@ -6061,6 +6201,18 @@ _projectFolderExplorer
             DoubleDoorToolButton,
             active == MapToolKind.DoorDouble
         );
+
+        SetToolButtonActive(
+            BridgeToolButton,
+            active == MapToolKind.BridgeNormal
+                || active == MapToolKind.BridgeIron
+                || active == MapToolKind.BridgeSubmersible
+                || active == MapToolKind.BridgeSuspension
+                || active == MapToolKind.BridgeBamboo
+                || active == MapToolKind.BridgePontoon
+                || active == MapToolKind.BridgeDestroyed
+        );
+
     }
 
     private static void SetToolButtonActive(

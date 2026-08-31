@@ -6091,7 +6091,18 @@ public MapCanvas()
             if (item is PlanningDoor)
                 continue;
 
-            if (item is PlanningPolyline line)
+            if (item is PlanningBridge bridge)
+            {
+                DrawPlanningBridge(
+                    context,
+                    bridge,
+                    IsPlanningSelectionVisible(bridge)
+                );
+
+                continue;
+            }
+
+if (item is PlanningPolyline line)
             {
                 DrawPlanningPolyline(
                     context,
@@ -9910,6 +9921,94 @@ public MapCanvas()
             )
         );
     }
+
+
+
+
+    private void DrawPlanningBridge(
+        DrawingContext context,
+        PlanningBridge bridge,
+        bool selected)
+    {
+        if (bridge.Points.Count < 2)
+            return;
+
+        WorldPoint start = bridge.Points[0];
+        WorldPoint end = bridge.Points[bridge.Points.Count - 1];
+
+        Point a = WorldToScreen(start.X, start.Y);
+        Point b = WorldToScreen(end.X, end.Y);
+
+        BridgeGeometryRenderer.Draw(
+            context,
+            a,
+            b,
+            bridge,
+            selected
+        );
+
+        if (!selected)
+            return;
+
+        var handlePen =
+            new Pen(
+                new SolidColorBrush(
+                    Color.FromRgb(235, 145, 30)
+                ),
+                1.5
+            );
+
+        context.DrawEllipse(Brushes.White, handlePen, a, 4.5, 4.5);
+        context.DrawEllipse(Brushes.White, handlePen, b, 4.5, 4.5);
+
+        Point handleA =
+            BridgeGeometryRenderer.GetWidthHandlePosition(
+                a,
+                b,
+                bridge.BridgeWidthPixels,
+                1.0
+            );
+
+        Point handleB =
+            BridgeGeometryRenderer.GetWidthHandlePosition(
+                a,
+                b,
+                bridge.BridgeWidthPixels,
+                -1.0
+            );
+
+        var guidePen =
+            new Pen(
+                new SolidColorBrush(
+                    Color.FromRgb(235, 145, 30)
+                ),
+                1.0
+            );
+
+        context.DrawLine(guidePen, handleB, handleA);
+
+        context.DrawEllipse(
+            Brushes.White,
+            handlePen,
+            handleA,
+            7.0,
+            7.0
+        );
+
+        context.DrawEllipse(
+            Brushes.White,
+            handlePen,
+            handleB,
+            7.0,
+            7.0
+        );
+    }
+
+
+
+
+
+
 
     private void DrawPlanningPolyline(
         DrawingContext context,

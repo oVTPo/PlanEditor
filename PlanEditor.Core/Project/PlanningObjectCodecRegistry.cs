@@ -70,6 +70,12 @@ public static class PlanningObjectCodecRegistry
             SerializeSymbol,
             DeserializeSymbol
         );
+
+        Register<PlanningBridge>(
+            "bridge",
+            SerializeBridge,
+            DeserializeBridge
+        );
     }
 
     public static void Register<T>(
@@ -249,6 +255,173 @@ public static class PlanningObjectCodecRegistry
                 points
         };
     }
+
+
+
+
+    private static JsonObject SerializeBridge(
+        PlanningBridge bridge)
+    {
+        var points =
+            new JsonArray();
+
+        foreach (
+            WorldPoint point
+            in bridge.Points)
+        {
+            points.Add(
+                new JsonObject
+                {
+                    ["x"] = point.X,
+                    ["y"] = point.Y
+                }
+            );
+        }
+
+        return new JsonObject
+        {
+            ["bridgeKind"] =
+                bridge.BridgeKind.ToString(),
+
+            ["bridgeWidthPixels"] =
+                bridge.BridgeWidthPixels,
+
+            ["strokeWidth"] =
+                bridge.WidthPixels,
+
+            ["legendLabel"] =
+                bridge.LegendLabel,
+
+            ["points"] =
+                points
+        };
+    }
+
+
+
+
+
+    private static PlanningBridge DeserializeBridge(
+        JsonObject node)
+    {
+        var bridge =
+            new PlanningBridge();
+
+        string kindText =
+            ReadString(
+                node,
+                "bridgeKind",
+                PlanningBridgeKind.Normal.ToString()
+            );
+
+        kindText =
+            kindText switch
+            {
+                "Standard" => "Normal",
+                "Basic" => "Normal",
+                "Beam" => "Submersible",
+                "Truss" => "Suspension",
+                _ => kindText
+            };
+
+        if (
+            Enum.TryParse(
+                kindText,
+                ignoreCase: true,
+                out PlanningBridgeKind kind
+            )
+        )
+        {
+            bridge.BridgeKind = kind;
+        }
+
+        bridge.BridgeWidthPixels =
+            Math.Clamp(
+                ReadDouble(
+                    node,
+                    "bridgeWidthPixels",
+                    ReadDouble(
+                        node,
+                        "deckWidthPixels",
+                        18.0
+                    )
+                ),
+                5.0,
+                120.0
+            );
+
+        bridge.WidthPixels =
+            Math.Clamp(
+                ReadDouble(
+                    node,
+                    "strokeWidth",
+                    ReadDouble(
+                        node,
+                        "widthPixels",
+                        2.0
+                    )
+                ),
+                0.75,
+                12.0
+            );
+
+        bridge.StrokeVisible = true;
+        bridge.StrokeColorHex = "#242424";
+
+        bridge.LegendLabel =
+            ReadString(
+                node,
+                "legendLabel",
+                ""
+            );
+
+        if (node["points"] is JsonArray points)
+        {
+            foreach (JsonNode? pointNode in points)
+            {
+                if (pointNode is not JsonObject point)
+                    continue;
+
+                bridge.Points.Add(
+                    new WorldPoint(
+                        ReadDouble(point, "x", 0.0),
+                        ReadDouble(point, "y", 0.0)
+                    )
+                );
+            }
+        }
+
+        bridge.Name =
+            bridge.BridgeKind switch
+            {
+                PlanningBridgeKind.Iron =>
+                    "Cầu sắt",
+
+                PlanningBridgeKind.Submersible =>
+                    "Cầu ngầm",
+
+                PlanningBridgeKind.Suspension =>
+                    "Cầu treo",
+
+                PlanningBridgeKind.Bamboo =>
+                    "Cầu tre / cầu một cây",
+
+                PlanningBridgeKind.Pontoon =>
+                    "Cầu nổi",
+
+                PlanningBridgeKind.Destroyed =>
+                    "Cầu bị phá",
+
+                _ =>
+                    "Cầu thường"
+            };
+
+        return bridge;
+    }
+
+
+
+
 
     private static JsonObject SerializeDoor(
         PlanningDoor door)

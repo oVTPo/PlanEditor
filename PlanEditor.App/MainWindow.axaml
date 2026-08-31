@@ -951,6 +951,36 @@
                         </Grid>
                     </Button>
 
+                    <Button
+                        x:Name="BridgeToolButton"
+                        Classes="tool"
+                        ToolTip.Tip="Cầu — chọn dạng cầu rồi click 2 điểm">
+                        <Grid Width="24" Height="22">
+                            <Path
+                                Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                StrokeThickness="1.8"
+                                StrokeLineCap="Square"
+                                Data="M3,7 L21,7 M3,15 L21,15 M7,7 L12,15 M12,15 L17,7"/>
+                        </Grid>
+
+                        <Button.Flyout>
+                            <Flyout Placement="Bottom">
+                                <StackPanel MinWidth="190" Spacing="3">
+                                    <Button HorizontalContentAlignment="Left" Content="Cầu thường" Click="OnBridgeNormalToolClick"/>
+                                    <Button HorizontalContentAlignment="Left" Content="Cầu sắt" Click="OnBridgeIronToolClick"/>
+                                    <Button HorizontalContentAlignment="Left" Content="Cầu ngầm" Click="OnBridgeSubmersibleToolClick"/>
+                                    <Button HorizontalContentAlignment="Left" Content="Cầu treo" Click="OnBridgeSuspensionToolClick"/>
+                                    <Button HorizontalContentAlignment="Left" Content="Cầu tre / cầu một cây" Click="OnBridgeBambooToolClick"/>
+                                    <Button HorizontalContentAlignment="Left" Content="Cầu nổi" Click="OnBridgePontoonToolClick"/>
+                                    <Button HorizontalContentAlignment="Left" Content="Cầu bị phá" Click="OnBridgeDestroyedToolClick"/>
+                                </StackPanel>
+                            </Flyout>
+                        </Button.Flyout>
+                    </Button>
+
+                    <!-- BRIDGE -->
+
+
                     <Border
                         Width="1"
                         Height="24"
@@ -1465,6 +1495,53 @@
                                         TextChanged="OnAreaLabelChanged"/>
                                 </StackPanel>
                             </StackPanel>
+                        </StackPanel>
+
+
+
+                        <!-- BRIDGE PROPERTY INSPECTOR -->
+                                                <StackPanel
+                            x:Name="BridgePropertyPanel"
+                            IsVisible="False"
+                            Margin="0,14,0,0"
+                            Spacing="10">
+
+                            <TextBlock
+                                Text="CẦU"
+                                FontSize="10"
+                                FontWeight="Bold"
+                                Foreground="#777D84"/>
+
+                            <Border Height="1" Background="#E0E2E5"/>
+
+                            <Grid ColumnDefinitions="92,*">
+                                <TextBlock Text="Dạng cầu" FontSize="11" Foreground="#5F656C" VerticalAlignment="Center"/>
+                                <ComboBox x:Name="BridgeKindComboBox" Grid.Column="1" SelectionChanged="OnBridgeKindChanged">
+                                    <ComboBoxItem Content="Cầu thường"/>
+                                    <ComboBoxItem Content="Cầu sắt"/>
+                                    <ComboBoxItem Content="Cầu ngầm"/>
+                                    <ComboBoxItem Content="Cầu treo"/>
+                                    <ComboBoxItem Content="Cầu tre / cầu một cây"/>
+                                    <ComboBoxItem Content="Cầu nổi"/>
+                                    <ComboBoxItem Content="Cầu bị phá"/>
+                                </ComboBox>
+                            </Grid>
+
+                            <Grid ColumnDefinitions="92,*">
+                                <TextBlock Text="Độ rộng" FontSize="11" Foreground="#5F656C" VerticalAlignment="Center"/>
+                                <NumericUpDown x:Name="BridgeWidthEditor" Grid.Column="1" Minimum="5" Maximum="120" Increment="1" ValueChanged="OnBridgeWidthChanged"/>
+                            </Grid>
+
+                            <Grid ColumnDefinitions="92,*">
+                                <TextBlock Text="StrokeWidth" FontSize="11" Foreground="#5F656C" VerticalAlignment="Center"/>
+                                <NumericUpDown x:Name="BridgeStrokeWidthEditor" Grid.Column="1" Minimum="0.75" Maximum="12" Increment="0.25" ValueChanged="OnBridgeStrokeWidthChanged"/>
+                            </Grid>
+
+                            <TextBlock
+                                Text="Kéo nút tròn ở giữa cầu để co/giãn độ rộng."
+                                TextWrapping="Wrap"
+                                FontSize="10"
+                                Foreground="#858A90"/>
                         </StackPanel>
 
                         <!-- ================================================= -->

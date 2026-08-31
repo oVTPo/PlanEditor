@@ -3,7 +3,7 @@ using PlanEditor.Core.Geometry;
 
 namespace PlanEditor.Core.Planning;
 
-public sealed class PlanningPolyline :
+public class PlanningPolyline :
     PlanningObject
 {
     public List<WorldPoint> Points { get; } =

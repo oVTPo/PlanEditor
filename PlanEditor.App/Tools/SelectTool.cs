@@ -24,6 +24,7 @@ public sealed class SelectTool :
     private PlanningDoor? _dragDoor;
     private PlanningText? _dragText;
     private PlanningSymbol? _dragSymbol;
+    private PlanningBridge? _dragBridgeWidth;
 
     /*
      * Circle scale là transform riêng. Không kéo 64 vertex nội bộ,
@@ -310,28 +311,22 @@ public sealed class SelectTool :
         }
 
         /*
-         * PRIORITY 0.75:
-         * Bézier handle của Area đang selected.
+         * PRIORITY BRIDGE WIDTH:
+         * kiểm tra trước vertex.
          */
         if (
             _manager.SelectedObject
-                is PlanningPolygon selectedPolygon &&
-            selectedPolygon.AreaKind !=
-                PlanningAreaKind.Circle &&
-            selectedPolygon.CurveEnabled &&
-            !selectedPolygon.IsLocked &&
-            TryHitPolygonBezierHandle(
-                selectedPolygon,
-                screen,
-                out int polygonCurveAnchorIndex,
-                out BezierHandleKind polygonCurveHandleKind)
+                is PlanningBridge selectedBridge &&
+            !selectedBridge.IsLocked &&
+            TryHitBridgeWidthHandle(
+                selectedBridge,
+                screen
+            )
         )
         {
-            BeginPolygonBezierHandleDrag(
+            BeginBridgeWidthDrag(
                 e,
-                selectedPolygon,
-                polygonCurveAnchorIndex,
-                polygonCurveHandleKind
+                selectedBridge
             );
 
             return true;
@@ -509,6 +504,17 @@ public sealed class SelectTool :
         )
         {
             MovePolygonBezierHandle(
+                screen
+            );
+
+            return true;
+        }
+
+        if (
+            _dragBridgeWidth != null
+        )
+        {
+            MoveBridgeWidthHandle(
                 screen
             );
 
@@ -1107,6 +1113,130 @@ public sealed class SelectTool :
 
         return true;
     }
+
+
+    private bool TryHitBridgeWidthHandle(
+        PlanningBridge bridge,
+        Point screen)
+    {
+        if (bridge.Points.Count < 2)
+            return false;
+
+        WorldPoint wa = bridge.Points[0];
+        WorldPoint wb = bridge.Points[bridge.Points.Count - 1];
+
+        Point a = _canvas.WorldToScreen(wa.X, wa.Y);
+        Point b = _canvas.WorldToScreen(wb.X, wb.Y);
+
+        Point h1 =
+            BridgeGeometryRenderer.GetWidthHandlePosition(
+                a,
+                b,
+                bridge.BridgeWidthPixels,
+                1.0
+            );
+
+        Point h2 =
+            BridgeGeometryRenderer.GetWidthHandlePosition(
+                a,
+                b,
+                bridge.BridgeWidthPixels,
+                -1.0
+            );
+
+        const double radius = 15.0;
+        double r2 = radius * radius;
+
+        return
+            DistanceSquared(screen, h1) <= r2 ||
+            DistanceSquared(screen, h2) <= r2;
+    }
+
+
+
+    private void BeginBridgeWidthDrag(
+        PointerPressedEventArgs e,
+        PlanningBridge bridge)
+    {
+        _dragBridgeWidth = bridge;
+
+        _dragObject = null;
+        _dragVertexIndex = -1;
+        _dragDoor = null;
+        _dragText = null;
+        _dragSymbol = null;
+        _dragBezierArrow = null;
+        _dragBezierAnchorIndex = -1;
+        _dragBezierHandleKind =
+            BezierHandleKind.None;
+
+        _dragging = true;
+        _dragChanged = false;
+
+        _canvas.Cursor =
+            new Cursor(
+                StandardCursorType.SizeNorthSouth
+            );
+
+        e.Pointer.Capture(_canvas);
+    }
+
+    private void MoveBridgeWidthHandle(
+        Point screen)
+    {
+        PlanningBridge? bridge = _dragBridgeWidth;
+
+        if (bridge == null || bridge.Points.Count < 2)
+            return;
+
+        WorldPoint wa = bridge.Points[0];
+        WorldPoint wb = bridge.Points[bridge.Points.Count - 1];
+
+        Point a = _canvas.WorldToScreen(wa.X, wa.Y);
+        Point b = _canvas.WorldToScreen(wb.X, wb.Y);
+
+        double dx = b.X - a.X;
+        double dy = b.Y - a.Y;
+        double len = Math.Sqrt(dx * dx + dy * dy);
+
+        if (len < 0.001)
+            return;
+
+        double nx = -dy / len;
+        double ny = dx / len;
+
+        Point mid =
+            new(
+                (a.X + b.X) / 2.0,
+                (a.Y + b.Y) / 2.0
+            );
+
+        double projection =
+            (screen.X - mid.X) * nx +
+            (screen.Y - mid.Y) * ny;
+
+        double halfWidth =
+            Math.Max(
+                2.5,
+                Math.Abs(projection) - 16.0
+            );
+
+        double width =
+            Math.Clamp(
+                halfWidth * 2.0,
+                5.0,
+                120.0
+            );
+
+        if (Math.Abs(bridge.BridgeWidthPixels - width) < 0.001)
+            return;
+
+        bridge.BridgeWidthPixels = width;
+        _dragChanged = true;
+        _canvas.InvalidateVisual();
+    }
+
+
 
     private void BeginVertexDrag(
         PointerPressedEventArgs e,
@@ -1749,6 +1879,9 @@ Point center =
         _dragSymbol =
             null;
 
+        _dragBridgeWidth =
+            null;
+
         _dragCircle =
             null;
 
@@ -1798,6 +1931,14 @@ Point center =
 
     private void CommitDragHistory()
     {
+        if (
+            _dragBridgeWidth != null
+        )
+        {
+            _document.NotifyChanged();
+            return;
+        }
+
         if (
             _dragBezierArrow != null ||
             _dragBezierPolygon != null

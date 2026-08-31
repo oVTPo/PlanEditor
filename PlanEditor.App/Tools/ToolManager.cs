@@ -23,7 +23,14 @@ public enum MapToolKind
     Arrow,
     Text,
     DoorSingle,
-    DoorDouble
+    DoorDouble,
+    BridgeNormal,
+    BridgeIron,
+    BridgeSubmersible,
+    BridgeSuspension,
+    BridgePontoon,
+    BridgeBamboo,
+    BridgeDestroyed
 }
 
 public sealed class ToolManager
@@ -45,6 +52,14 @@ public sealed class ToolManager
     private readonly TextTool _textTool;
     private readonly DoorTool _singleDoorTool;
     private readonly DoorTool _doubleDoorTool;
+
+    private readonly BridgeTool _bridgeNormalTool;
+    private readonly BridgeTool _bridgeIronTool;
+    private readonly BridgeTool _bridgeSubmersibleTool;
+    private readonly BridgeTool _bridgeSuspensionTool;
+    private readonly BridgeTool _bridgePontoonTool;
+    private readonly BridgeTool _bridgeBambooTool;
+    private readonly BridgeTool _bridgeDestroyedTool;
 
     private IMapTool? _activeTool;
 
@@ -188,6 +203,55 @@ public sealed class ToolManager
                 PlanningDoorKind.DoubleLeaf
             );
 
+        _bridgeNormalTool =
+            new BridgeTool(
+                canvas,
+                document,
+                PlanningBridgeKind.Normal
+            );
+
+        _bridgeIronTool =
+            new BridgeTool(
+                canvas,
+                document,
+                PlanningBridgeKind.Iron
+            );
+
+        _bridgeSubmersibleTool =
+            new BridgeTool(
+                canvas,
+                document,
+                PlanningBridgeKind.Submersible
+            );
+
+        _bridgeSuspensionTool =
+            new BridgeTool(
+                canvas,
+                document,
+                PlanningBridgeKind.Suspension
+            );
+
+        _bridgePontoonTool =
+            new BridgeTool(
+                canvas,
+                document,
+                PlanningBridgeKind.Pontoon
+            );
+
+        _bridgeBambooTool =
+            new BridgeTool(
+                canvas,
+                document,
+                PlanningBridgeKind.Bamboo
+            );
+
+        _bridgeDestroyedTool =
+            new BridgeTool(
+                canvas,
+                document,
+                PlanningBridgeKind.Destroyed
+            );
+
         SetActiveTool(
             MapToolKind.Select
         );
@@ -242,6 +306,27 @@ public sealed class ToolManager
 
                 MapToolKind.DoorDouble =>
                     _doubleDoorTool,
+
+                MapToolKind.BridgeNormal =>
+                    _bridgeNormalTool,
+
+                MapToolKind.BridgeIron =>
+                    _bridgeIronTool,
+
+                MapToolKind.BridgeSubmersible =>
+                    _bridgeSubmersibleTool,
+
+                MapToolKind.BridgeSuspension =>
+                    _bridgeSuspensionTool,
+
+                MapToolKind.BridgePontoon =>
+                    _bridgePontoonTool,
+
+                MapToolKind.BridgeBamboo =>
+                    _bridgeBambooTool,
+
+                MapToolKind.BridgeDestroyed =>
+                    _bridgeDestroyedTool,
 
                 _ =>
                     _selectTool
