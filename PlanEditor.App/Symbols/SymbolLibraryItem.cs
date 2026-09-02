@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.IO;
 using Avalonia.Media;
 using Avalonia.Svg.Skia;
@@ -15,6 +16,10 @@ public sealed class SymbolLibraryItem
     {
         get;
     }
+
+    public string Category { get; }
+
+    public string Description { get; }
 
     public string FilePath
     {
@@ -40,7 +45,9 @@ public sealed class SymbolLibraryItem
         string id,
         string name,
         string filePath,
-        bool isBuiltIn)
+        bool isBuiltIn,
+        string category = "Khác",
+        string description = "")
     {
         Id =
             id;
@@ -53,6 +60,14 @@ public sealed class SymbolLibraryItem
 
         IsBuiltIn =
             isBuiltIn;
+
+        Category =
+            string.IsNullOrWhiteSpace(category)
+                ? "Khác"
+                : category.Trim();
+
+        Description =
+            description?.Trim() ?? "";
 
         PreviewImage =
             LoadPreview(
@@ -91,5 +106,20 @@ public sealed class SymbolLibraryItem
         {
             return null;
         }
+    }
+}
+
+public sealed class SymbolLibraryGroup
+{
+    public string Category { get; }
+    public IReadOnlyList<SymbolLibraryItem> Items { get; }
+    public string Header => $"{Category} ({Items.Count})";
+
+    public SymbolLibraryGroup(
+        string category,
+        IReadOnlyList<SymbolLibraryItem> items)
+    {
+        Category = category;
+        Items = items;
     }
 }

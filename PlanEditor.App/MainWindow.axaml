@@ -2603,7 +2603,7 @@
                     Padding="10,8">
 
                     <Grid
-                        RowDefinitions="Auto,Auto">
+                        RowDefinitions="Auto,Auto,*">
 
                         <Grid
                             Grid.Row="0"
@@ -2631,45 +2631,101 @@
                             </Button>
                         </Grid>
 
-                        <ScrollViewer
+                        <TextBox
+                            x:Name="SymbolLibrarySearchBox"
                             Grid.Row="1"
+                            Height="28"
+                            Margin="0,0,0,6"
+                            Padding="8,3"
+                            Watermark="Tìm tên, mô tả hoặc nhóm..."
+                            FontSize="10"
+                            TextChanged="OnSymbolLibrarySearchChanged"/>
+
+                        <ScrollViewer
+                            Grid.Row="2"
                             HorizontalScrollBarVisibility="Disabled"
                             VerticalScrollBarVisibility="Auto"
-                            MaxHeight="132">
+                            MaxHeight="220">
 
                             <ItemsControl
-                                x:Name="SymbolLibraryItemsControl">
+                                x:Name="SymbolLibraryItemsControl"
+                                HorizontalAlignment="Stretch">
 
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <WrapPanel
-                                            Orientation="Horizontal"/>
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.Styles>
+                                    <Style Selector="ItemsControl > ContentPresenter">
+                                        <Setter
+                                            Property="HorizontalAlignment"
+                                            Value="Stretch"/>
+                                    </Style>
+                                </ItemsControl.Styles>
 
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate
-                                        x:DataType="symbols:SymbolLibraryItem">
+                                        x:DataType="symbols:SymbolLibraryGroup">
 
-                                        <Border
-                                            Width="46"
-                                            Height="46"
-                                            Margin="2"
-                                            Padding="5"
-                                            Background="#FFFFFF"
-                                            BorderBrush="#E1E4E7"
-                                            BorderThickness="1"
-                                            CornerRadius="5"
-                                            PointerPressed="OnSymbolCardPointerPressed"
-                                            PointerMoved="OnSymbolCardPointerMoved"
-                                            PointerReleased="OnSymbolCardPointerReleased"
-                                            DoubleTapped="OnSymbolCardDoubleTapped"
-                                            ToolTip.Tip="{Binding Name}">
+                                        <Expander
+                                            IsExpanded="True"
+                                            HorizontalAlignment="Stretch"
+                                            HorizontalContentAlignment="Stretch"
+                                            Margin="0,0,0,1"
+                                            Padding="0">
 
-                                            <Image
-                                                Source="{Binding PreviewImage}"
-                                                Stretch="Uniform"/>
-                                        </Border>
+                                            <Expander.Styles>
+                                                <Style Selector="ToggleButton">
+                                                    <Setter Property="Height" Value="26"/>
+                                                    <Setter Property="MinHeight" Value="26"/>
+                                                    <Setter Property="Padding" Value="7,0"/>
+                                                    <Setter Property="FontSize" Value="9.5"/>
+                                                </Style>
+                                            </Expander.Styles>
+
+                                            <Expander.Header>
+                                                <TextBlock
+                                                    Text="{Binding Header}"
+                                                    FontSize="12"
+                                                    FontWeight="SemiBold"
+                                                    VerticalAlignment="Center"
+                                                    Margin="4,0,0,0"
+                                                    />
+                                                    
+                                            </Expander.Header>
+
+                                            <ItemsControl
+                                                ItemsSource="{Binding Items}">
+
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate>
+                                                        <WrapPanel Orientation="Horizontal"/>
+                                                    </ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate
+                                                        x:DataType="symbols:SymbolLibraryItem">
+
+                                                        <Border
+                                                            Width="42"
+                                                            Height="42"
+                                                            Margin="1.5"
+                                                            Padding="4"
+                                                            Background="#FFFFFF"
+                                                            BorderBrush="#E1E4E7"
+                                                            BorderThickness="1"
+                                                            CornerRadius="5"
+                                                            PointerPressed="OnSymbolCardPointerPressed"
+                                                            PointerMoved="OnSymbolCardPointerMoved"
+                                                            PointerReleased="OnSymbolCardPointerReleased"
+                                                            DoubleTapped="OnSymbolCardDoubleTapped"
+                                                            ToolTip.Tip="{Binding Name}">
+
+                                                            <Image
+                                                                Source="{Binding PreviewImage}"
+                                                                Stretch="Uniform"/>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </Expander>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>

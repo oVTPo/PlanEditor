@@ -381,6 +381,14 @@ public sealed class SymbolLibraryService
                     ? "builtin:"
                     : "user:";
 
+            string fileName =
+                Path.GetFileName(path);
+
+            metadata.TryGetValue(
+                fileName,
+                out SymbolMetadata? metadataItem
+            );
+
             return new SymbolLibraryItem(
                 prefix + hash,
                 GetDisplayName(
@@ -388,7 +396,9 @@ public sealed class SymbolLibraryService
                     metadata
                 ),
                 path,
-                isBuiltIn
+                isBuiltIn,
+                metadataItem?.Category ?? "Khác",
+                metadataItem?.Description ?? ""
             );
         }
         catch
@@ -691,7 +701,9 @@ public sealed class SymbolLibraryService
                 var assetNames =
                     new HashSet<string>(
                         assetSvgFiles.Select(
-                            Path.GetFileName
+                            path =>
+                                Path.GetFileName(path)
+                                ?? ""
                         ),
                         StringComparer.OrdinalIgnoreCase
                     );

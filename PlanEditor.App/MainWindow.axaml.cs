@@ -1,8 +1,10 @@
 using System;
 using System.Diagnostics;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
@@ -212,8 +214,7 @@ public partial class MainWindow : Window
         ProjectFileTree.ItemsSource =
             _projectFolderExplorer.Roots;
 
-        SymbolLibraryItemsControl.ItemsSource =
-            _symbolLibrary.Items;
+        RefreshSymbolLibraryGroups();
 
         ShapeStrokeColorComboBox.ItemsSource =
             _colorLibrary.Items;
@@ -2432,6 +2433,99 @@ _projectFolderExplorer
             _planningDocument.CanRedo;
     }
 
+    private void OnSymbolLibrarySearchChanged(
+        object? sender,
+        TextChangedEventArgs e)
+    {
+        RefreshSymbolLibraryGroups();
+    }
+
+    private void RefreshSymbolLibraryGroups()
+    {
+        string query =
+            NormalizeSymbolSearchText(
+                SymbolLibrarySearchBox.Text
+            );
+
+        IEnumerable<SymbolLibraryItem> filtered =
+            _symbolLibrary.Items;
+
+        if (query.Length > 0)
+        {
+            filtered =
+                filtered.Where(
+                    item =>
+                        NormalizeSymbolSearchText(
+                            $"{item.Name} {item.Description} " +
+                            $"{item.Category} {item.SourceLabel}"
+                        ).Contains(
+                            query,
+                            StringComparison.Ordinal
+                        )
+                );
+        }
+
+        SymbolLibraryItemsControl.ItemsSource =
+            filtered
+                .GroupBy(
+                    item =>
+                        string.IsNullOrWhiteSpace(item.Category)
+                            ? "Khác"
+                            : item.Category.Trim(),
+                    StringComparer.CurrentCultureIgnoreCase
+                )
+                .OrderBy(
+                    group => group.Key,
+                    StringComparer.CurrentCultureIgnoreCase
+                )
+                .Select(
+                    group =>
+                        new SymbolLibraryGroup(
+                            group.Key,
+                            group
+                                .OrderBy(
+                                    item => item.Name,
+                                    StringComparer.CurrentCultureIgnoreCase
+                                )
+                                .ToList()
+                        )
+                )
+                .ToList();
+    }
+
+    private static string NormalizeSymbolSearchText(
+        string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return "";
+
+        string decomposed =
+            value
+                .Trim()
+                .ToLowerInvariant()
+                .Normalize(NormalizationForm.FormD);
+
+        var result =
+            new StringBuilder(decomposed.Length);
+
+        foreach (char character in decomposed)
+        {
+            if (
+                CharUnicodeInfo.GetUnicodeCategory(character) !=
+                UnicodeCategory.NonSpacingMark
+            )
+            {
+                result.Append(
+                    character == 'đ' ? 'd' : character
+                );
+            }
+        }
+
+        return result
+            .ToString()
+            .Normalize(NormalizationForm.FormC);
+    }
+
     private async void OnImportSvgSymbolClick(
         object? sender,
         Avalonia.Interactivity.RoutedEventArgs e)
@@ -2490,6 +2584,8 @@ _projectFolderExplorer
 
         if (imported > 0)
         {
+            RefreshSymbolLibraryGroups();
+
             PlanningStatusText.Text =
                 $"Đã thêm {imported} SVG vào thư viện ký hiệu.";
         }
