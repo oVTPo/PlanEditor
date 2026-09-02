@@ -6,6 +6,7 @@ using System.IO.Compression;
 using System.Security;
 using System.Text;
 using Avalonia;
+using SkiaSharp;
 
 namespace PlanEditor.App.Printing;
 
@@ -76,6 +77,24 @@ public static class PrintDocxExportService
             legendPreviewPng,
             nameof(legendPreviewPng)
         );
+
+        /*
+         * RenderTargetBitmap của Avalonia xuất PNG BGRA có alpha
+         * premultiplied. Word/Pages trên macOS đôi khi giải mã phần alpha
+         * của ảnh bị crop thành nền đen. Chuẩn hóa cả hai ảnh sang PNG
+         * BGRA opaque, ghép lên nền trắng trước khi đưa vào gói DOCX.
+         */
+        byte[] officeMapPreviewPng =
+            FlattenPngOnWhite(
+                mapPreviewPng,
+                nameof(mapPreviewPng)
+            );
+
+        byte[] officeLegendPreviewPng =
+            FlattenPngOnWhite(
+                legendPreviewPng,
+                nameof(legendPreviewPng)
+            );
 
         if (
             previewSize.Width <= 0 ||
@@ -246,13 +265,13 @@ public static class PrintDocxExportService
             WriteBinaryEntry(
                 archive,
                 "word/media/map-preview.png",
-                mapPreviewPng
+                officeMapPreviewPng
             );
 
             WriteBinaryEntry(
                 archive,
                 "word/media/legend-preview.png",
-                legendPreviewPng
+                officeLegendPreviewPng
             );
 
             WriteTextEntry(
@@ -650,12 +669,60 @@ public static class PrintDocxExportService
                     previewSize
                 );
 
+            /*
+             * Fit kiểu "contain": giữ nguyên tỷ lệ của vùng ký hiệu,
+             * không kéo méo theo tỷ lệ ô Word. Chừa safe padding để nét
+             * ngoài cùng của hàng rào/Barie không chạm đường viền bảng.
+             */
+            double availableWidthTwips =
+                Math.Max(
+                    1.0,
+                    cellWidthTwips - 160.0
+                );
+
+            double availableHeightTwips =
+                Math.Max(
+                    1.0,
+                    cellHeightTwips - 100.0
+                );
+
+            double sourceAspect =
+                sampleRects[index].Width /
+                sampleRects[index].Height;
+
+            double targetAspect =
+                availableWidthTwips /
+                availableHeightTwips;
+
+            double pictureWidthTwips;
+            double pictureHeightTwips;
+
+            if (sourceAspect >= targetAspect)
+            {
+                pictureWidthTwips =
+                    availableWidthTwips;
+
+                pictureHeightTwips =
+                    availableWidthTwips /
+                    sourceAspect;
+            }
+            else
+            {
+                pictureHeightTwips =
+                    availableHeightTwips;
+
+                pictureWidthTwips =
+                    availableHeightTwips *
+                    sourceAspect;
+            }
+
             long widthEmu =
                 TwipsToEmu(
                     Math.Max(
                         1,
-                        cellWidthTwips -
-                            80
+                        (int)Math.Round(
+                            pictureWidthTwips
+                        )
                     )
                 );
 
@@ -663,8 +730,9 @@ public static class PrintDocxExportService
                 TwipsToEmu(
                     Math.Max(
                         1,
-                        cellHeightTwips -
-                            50
+                        (int)Math.Round(
+                            pictureHeightTwips
+                        )
                     )
                 );
 
@@ -980,6 +1048,126 @@ public static class PrintDocxExportService
                 parameterName
             );
         }
+    }
+
+    private static byte[] FlattenPngOnWhite(
+        byte[] png,
+        string parameterName)
+    {
+        using SKBitmap? source =
+            SKBitmap.Decode(
+                png
+            );
+
+        if (
+            source == null ||
+            source.Width <= 0 ||
+            source.Height <= 0
+        )
+        {
+            throw new ArgumentException(
+                "Không thể giải mã ảnh PNG để xuất DOCX.",
+                parameterName
+            );
+        }
+
+        const double PreferredScale =
+            1.0;
+
+        const double MaximumImageEdge =
+            6000.0;
+
+        double scale =
+            Math.Min(
+                PreferredScale,
+                MaximumImageEdge /
+                    Math.Max(
+                        source.Width,
+                        source.Height
+                    )
+            );
+
+        scale =
+            Math.Max(
+                1.0,
+                scale
+            );
+
+        int outputWidth =
+            Math.Max(
+                1,
+                (int)Math.Round(
+                    source.Width *
+                    scale
+                )
+            );
+
+        int outputHeight =
+            Math.Max(
+                1,
+                (int)Math.Round(
+                    source.Height *
+                    scale
+                )
+            );
+
+        var imageInfo =
+            new SKImageInfo(
+                outputWidth,
+                outputHeight,
+                SKColorType.Bgra8888,
+                SKAlphaType.Opaque
+            );
+
+        using SKSurface? surface =
+            SKSurface.Create(
+                imageInfo
+            );
+
+        if (surface == null)
+        {
+            throw new InvalidOperationException(
+                "Không thể tạo ảnh nền trắng để xuất DOCX."
+            );
+        }
+
+        surface.Canvas.Clear(
+            SKColors.White
+        );
+
+        using var paint =
+            new SKPaint
+            {
+                FilterQuality =
+                    SKFilterQuality.High,
+
+                IsAntialias =
+                    true
+            };
+
+        surface.Canvas.DrawBitmap(
+            source,
+            new SKRect(
+                0.0f,
+                0.0f,
+                outputWidth,
+                outputHeight
+            ),
+            paint
+        );
+
+        surface.Canvas.Flush();
+
+        using SKImage image =
+            surface.Snapshot();
+
+        using SKData data =
+            image.Encode(
+                SKEncodedImageFormat.Png,
+                100
+            );
+
+        return data.ToArray();
     }
 
     private static string EscapeXml(

@@ -3761,6 +3761,22 @@ _projectFolderExplorer
             entry.SourceObject is
                 PlanningPolyline line)
         {
+            if (
+                FenceRenderer.TryGetKind(
+                    line,
+                    out FenceKind fenceKind
+                )
+            )
+            {
+                return
+                    string.IsNullOrWhiteSpace(
+                        entry.Label)
+                        ? FenceRenderer.GetDisplayName(
+                            fenceKind
+                        )
+                        : entry.Label;
+            }
+
             string label =
                 string.IsNullOrWhiteSpace(
                     entry.Label)

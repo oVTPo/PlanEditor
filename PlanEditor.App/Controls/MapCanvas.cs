@@ -776,59 +776,23 @@ public MapCanvas()
             );
 
         double pageWidthMm =
-            _printOrientation ==
-                PrintOrientation.Landscape
-                ? Math.Max(
-                    paper.WidthMillimeters,
-                    paper.HeightMillimeters
-                )
-                : Math.Min(
-                    paper.WidthMillimeters,
-                    paper.HeightMillimeters
-                );
+            _printOrientation == PrintOrientation.Landscape
+                ? Math.Max(paper.WidthMillimeters, paper.HeightMillimeters)
+                : Math.Min(paper.WidthMillimeters, paper.HeightMillimeters);
 
         double pageHeightMm =
-            _printOrientation ==
-                PrintOrientation.Landscape
-                ? Math.Min(
-                    paper.WidthMillimeters,
-                    paper.HeightMillimeters
-                )
-                : Math.Max(
-                    paper.WidthMillimeters,
-                    paper.HeightMillimeters
-                );
+            _printOrientation == PrintOrientation.Landscape
+                ? Math.Min(paper.WidthMillimeters, paper.HeightMillimeters)
+                : Math.Max(paper.WidthMillimeters, paper.HeightMillimeters);
 
         targetPageDpi =
-            Math.Clamp(
-                targetPageDpi,
-                120.0,
-                600.0
-            );
-
-        double targetPageWidthPixels =
-            pageWidthMm /
-            25.4 *
-            targetPageDpi;
-
-        double targetPageHeightPixels =
-            pageHeightMm /
-            25.4 *
-            targetPageDpi;
-
-        double scaleX =
-            targetPageWidthPixels /
-            pageRect.Width;
-
-        double scaleY =
-            targetPageHeightPixels /
-            pageRect.Height;
+            Math.Clamp(targetPageDpi, 120.0, 600.0);
 
         double exportScale =
             Math.Clamp(
                 Math.Max(
-                    scaleX,
-                    scaleY
+                    pageWidthMm / 25.4 * targetPageDpi / pageRect.Width,
+                    pageHeightMm / 25.4 * targetPageDpi / pageRect.Height
                 ),
                 1.0,
                 8.0
@@ -838,8 +802,7 @@ public MapCanvas()
             Math.Max(
                 1,
                 (int)Math.Ceiling(
-                    Bounds.Width *
-                    exportScale
+                    Bounds.Width * exportScale
                 )
             );
 
@@ -847,14 +810,9 @@ public MapCanvas()
             Math.Max(
                 1,
                 (int)Math.Ceiling(
-                    Bounds.Height *
-                    exportScale
+                    Bounds.Height * exportScale
                 )
             );
-
-        double renderDpi =
-            96.0 *
-            exportScale;
 
         bool oldSuppress =
             _suppressPrintLegendForExport;
@@ -864,6 +822,31 @@ public MapCanvas()
             _suppressPrintLegendForExport =
                 !includeLegend;
 
+            /*
+             * Không dùng DPI của RenderTargetBitmap để phóng ảnh.
+             * Trên Avalonia/macOS, DPI lớn làm hệ tọa độ render lệch khỏi
+             * hệ tọa độ Bounds; DOCX sau đó crop đúng tỷ lệ logic nhưng lại
+             * lấy trúng phần nền tối bên ngoài trang giấy.
+             *
+             * Render MapCanvas qua một visual xuất riêng. Visual này áp dụng
+             * một transform chung lên TOÀN BỘ frame nên camera, nét, chữ,
+             * symbol và legend đều giữ nguyên tỷ lệ như Print Preview,
+             * đồng thời được raster hóa trực tiếp ở độ phân giải cao.
+             */
+            var exportVisual =
+                new PrintExportVisual(
+                    this,
+                    exportScale
+                );
+
+            exportVisual.Measure(
+                new Size(width, height)
+            );
+
+            exportVisual.Arrange(
+                new Rect(0.0, 0.0, width, height)
+            );
+
             var bitmap =
                 new RenderTargetBitmap(
                     new PixelSize(
@@ -871,14 +854,12 @@ public MapCanvas()
                         height
                     ),
                     new Vector(
-                        renderDpi,
-                        renderDpi
+                        96.0,
+                        96.0
                     )
                 );
 
-            bitmap.Render(
-                this
-            );
+            bitmap.Render(exportVisual);
 
             using var stream =
                 new MemoryStream();
@@ -893,6 +874,39 @@ public MapCanvas()
         {
             _suppressPrintLegendForExport =
                 oldSuppress;
+        }
+    }
+
+    private sealed class PrintExportVisual : Control
+    {
+        private readonly MapCanvas _source;
+        private readonly double _scale;
+
+        public PrintExportVisual(
+            MapCanvas source,
+            double scale)
+        {
+            _source = source;
+            _scale = scale;
+            ClipToBounds = true;
+        }
+
+        public override void Render(
+            DrawingContext context)
+        {
+            base.Render(context);
+
+            using (
+                context.PushTransform(
+                    Matrix.CreateScale(
+                        _scale,
+                        _scale
+                    )
+                )
+            )
+            {
+                _source.Render(context);
+            }
         }
     }
 
@@ -2263,18 +2277,24 @@ public MapCanvas()
                 rowHeight
             );
 
-        double inset =
+        /*
+         * DrawLegendSample vẽ ký hiệu trong vùng inset 16%.
+         * Vùng dùng làm nguồn crop phải rộng hơn vùng vẽ để giữ lại
+         * khoảng trắng và phần stroke vươn ra ngoài biên hình học.
+         * Chỉ bỏ một mép rất nhỏ để không lấy đường kẻ của bảng preview.
+         */
+        double cropInset =
             Math.Max(
-                2.0,
+                1.0,
                 Math.Min(
                     symbolCell.Width,
                     symbolCell.Height
                 ) *
-                0.16
+                0.03
             );
 
         return symbolCell.Deflate(
-            inset
+            cropInset
         );
     }
 
@@ -2442,6 +2462,41 @@ public MapCanvas()
             {
                 if (!line.StrokeVisible)
                     return null;
+
+                /*
+                 * Fence dùng PlanningPolyline để tương thích dữ liệu,
+                 * nhưng trong chú thích phải được nhận theo đúng công cụ.
+                 * Mỗi FenceKind là một quy ước riêng, không gom theo
+                 * màu/nét như đường thông thường.
+                 */
+                if (
+                    FenceRenderer.TryGetKind(
+                        line,
+                        out FenceKind fenceKind
+                    )
+                )
+                {
+                    return new PrintLegendEntry
+                    {
+                        Kind =
+                            PrintLegendKind.Line,
+
+                        Label =
+                            string.IsNullOrWhiteSpace(
+                                line.LegendLabel)
+                                ? FenceRenderer
+                                    .GetDisplayName(
+                                        fenceKind
+                                    )
+                                : line.LegendLabel,
+
+                        StyleKey =
+                            $"F|{fenceKind}",
+
+                        SourceObject =
+                            line
+                    };
+                }
 
                 return new PrintLegendEntry
                 {
@@ -2983,6 +3038,17 @@ public MapCanvas()
                 return;
 
             case PlanningPolyline line:
+                if (FenceRenderer.IsFence(line))
+                {
+                    FenceRenderer.DrawLegendSample(
+                        context,
+                        line,
+                        sample
+                    );
+
+                    return;
+                }
+
                 DrawLegendLine(
                     context,
                     line,
