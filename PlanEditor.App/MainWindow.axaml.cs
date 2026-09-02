@@ -48,6 +48,7 @@ public partial class MainWindow : Window
     private bool _updatingTextProperties;
     private bool _updatingSymbolProperties;
     private bool _updatingShapeStyleProperties;
+    private bool _updatingFenceProperties;
 
     /*
      * ComboBox/NumericUpDown có thể phát event ngay trong lúc
@@ -61,6 +62,9 @@ public partial class MainWindow : Window
 
     private MapToolKind _geometricShapeToolKind =
         MapToolKind.Circle;
+
+    private MapToolKind _fenceToolKind =
+        MapToolKind.FenceLooseBarbedWire;
 
 
     private bool _inlineTextEditorActive;
@@ -2388,6 +2392,9 @@ _projectFolderExplorer
         BridgePropertyPanel.IsVisible =
             false;
 
+        FencePropertyPanel.IsVisible =
+            false;
+
         if (selected == null)
             return;
 
@@ -2886,6 +2893,140 @@ _projectFolderExplorer
 
         UpdatePlanningUi();
     }
+
+    private void OnFenceToolClick(
+        object? sender,
+        Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        MapCanvas.SetPlanningTool(
+            _fenceToolKind
+        );
+
+        UpdatePlanningUi();
+        MapCanvas.Focus();
+    }
+
+    private void OnFenceLooseBarbedWireClick(
+        object? sender,
+        Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        SetFenceTool(
+            MapToolKind.FenceLooseBarbedWire
+        );
+    }
+
+    private void OnFenceFallenTree2Click(
+        object? sender,
+        Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        SetFenceTool(
+            MapToolKind.FenceFallenTree2
+        );
+    }
+
+    private void OnFenceFallenTree1Click(
+        object? sender,
+        Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        SetFenceTool(
+            MapToolKind.FenceFallenTree1
+        );
+    }
+
+    private void OnFenceChevalDeFriseClick(
+        object? sender,
+        Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        SetFenceTool(
+            MapToolKind.FenceChevalDeFrise
+        );
+    }
+
+    private void OnFenceTripWireClick(
+        object? sender,
+        Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        SetFenceTool(
+            MapToolKind.FenceTripWire
+        );
+    }
+
+    private void OnFenceControlBarrierClick(
+        object? sender,
+        Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        SetFenceTool(
+            MapToolKind.FenceControlBarrier
+        );
+    }
+
+    private void SetFenceTool(
+        MapToolKind kind)
+    {
+        _fenceToolKind =
+            kind;
+
+        UpdateFenceButtonUi();
+
+        MapCanvas.SetPlanningTool(
+            kind
+        );
+
+        UpdatePlanningUi();
+        MapCanvas.Focus();
+    }
+
+    private void UpdateFenceButtonUi()
+    {
+        FenceLooseBarbedWireIcon.IsVisible =
+            _fenceToolKind ==
+                MapToolKind.FenceLooseBarbedWire;
+
+        FenceFallenTree2Icon.IsVisible =
+            _fenceToolKind ==
+                MapToolKind.FenceFallenTree2;
+
+        FenceFallenTree1Icon.IsVisible =
+            _fenceToolKind ==
+                MapToolKind.FenceFallenTree1;
+
+        FenceChevalDeFriseIcon.IsVisible =
+            _fenceToolKind ==
+                MapToolKind.FenceChevalDeFrise;
+
+        FenceTripWireIcon.IsVisible =
+            _fenceToolKind ==
+                MapToolKind.FenceTripWire;
+
+        FenceControlBarrierIcon.IsVisible =
+            _fenceToolKind ==
+                MapToolKind.FenceControlBarrier;
+
+        Avalonia.Controls.ToolTip.SetTip(
+            FenceToolButton,
+            _fenceToolKind switch
+            {
+                MapToolKind.FenceFallenTree2 =>
+                    "Hàng rào bằng cây đổ • Chuột phải để đổi loại",
+
+                MapToolKind.FenceFallenTree1 =>
+                    "Hàng rào bằng cây đổ có bố trí mìn • Chuột phải để đổi loại",
+
+                MapToolKind.FenceChevalDeFrise =>
+                    "Hàng rào cự mã • Chuột phải để đổi loại",
+
+                MapToolKind.FenceTripWire =>
+                    "Hàng rào vướng chân • Chuột phải để đổi loại",
+
+                MapToolKind.FenceControlBarrier =>
+                    "Barie kiểm soát • Chuột phải để đổi loại",
+
+                _ =>
+                    "Hàng rào thép gai bùng nhùng • Chuột phải để đổi loại"
+            }
+        );
+    }
+
 
     private void OnArrowToolClick(
         object? sender,
@@ -4153,6 +4294,24 @@ _projectFolderExplorer
                 MapToolKind.Line =>
                     "Đường",
 
+                MapToolKind.FenceLooseBarbedWire =>
+                    "Hàng rào thép gai bùng nhùng",
+
+                MapToolKind.FenceFallenTree2 =>
+                    "Hàng rào bằng cây đổ",
+
+                MapToolKind.FenceFallenTree1 =>
+                    "Hàng rào bằng cây đổ có bố trí mìn",
+
+                MapToolKind.FenceChevalDeFrise =>
+                    "Hàng rào cự mã",
+
+                MapToolKind.FenceTripWire =>
+                    "Hàng rào vướng chân",
+
+                MapToolKind.FenceControlBarrier =>
+                    "Barie kiểm soát",
+
                 MapToolKind.Area =>
                     "Vùng",
 
@@ -4285,6 +4444,67 @@ _projectFolderExplorer
             finally
             {
                 _updatingBridgeProperties =
+                    false;
+            }
+        }
+
+        else if (
+            selected is PlanningPolyline fenceLine &&
+            FenceRenderer.TryGetKind(
+                fenceLine,
+                out FenceKind fenceKind
+            ))
+        {
+            PlanningPropertyText.IsVisible =
+                false;
+
+            ShapeStylePropertyPanel.IsVisible =
+                false;
+
+            FencePropertyPanel.IsVisible =
+                true;
+
+            _updatingFenceProperties =
+                true;
+
+            try
+            {
+                FencePropertyTitleText.Text =
+                    FenceRenderer
+                        .GetDisplayName(
+                            fenceKind
+                        )
+                        .ToUpperInvariant();
+
+                FenceStrokeWidthEditor.Value =
+                    (decimal)
+                    fenceLine.WidthPixels;
+
+                FenceGeometryWidthRow.IsVisible =
+                    fenceKind != FenceKind.ChevalDeFrise &&
+                    fenceKind != FenceKind.ControlBarrier;
+
+                FenceGeometryWidthEditor.Value =
+                    (decimal)
+                    FenceRenderer
+                        .GetGeometryWidthPercent(
+                            fenceLine
+                        );
+
+                FenceBarrierHeightRow.IsVisible =
+                    fenceKind ==
+                    FenceKind.ControlBarrier;
+
+                FenceBarrierHeightEditor.Value =
+                    (decimal)
+                    FenceRenderer
+                        .GetControlBarrierHeight(
+                            fenceLine
+                        );
+            }
+            finally
+            {
+                _updatingFenceProperties =
                     false;
             }
         }
@@ -5425,6 +5645,125 @@ _projectFolderExplorer
         MapCanvas.InvalidateVisual();
     }
 
+    private void OnFenceStrokeWidthChanged(
+        object? sender,
+        NumericUpDownValueChangedEventArgs e)
+    {
+        if (
+            !_mainWindowUiReady ||
+            _updatingFenceProperties ||
+            e.NewValue == null
+        )
+        {
+            return;
+        }
+
+        if (
+            MapCanvas.SelectedPlanningObject
+                is not PlanningPolyline line ||
+            !FenceRenderer.IsFence(
+                line
+            )
+        )
+        {
+            return;
+        }
+
+        double value =
+            (double)e.NewValue.Value;
+
+        _planningDocument
+            .SetPolylineWidth(
+                line,
+                value
+            );
+
+        MapCanvas.InvalidateVisual();
+
+        PlanningStatusText.Text =
+            "Đã đổi cỡ nét hàng rào";
+    }
+
+
+    private void OnFenceGeometryWidthChanged(
+        object? sender,
+        NumericUpDownValueChangedEventArgs e)
+    {
+        if (
+            !_mainWindowUiReady ||
+            _updatingFenceProperties ||
+            e.NewValue == null
+        )
+        {
+            return;
+        }
+
+        if (
+            MapCanvas.SelectedPlanningObject
+                is not PlanningPolyline line ||
+            !FenceRenderer.TryGetKind(
+                line,
+                out FenceKind kind
+            ) ||
+            kind == FenceKind.ChevalDeFrise ||
+            kind == FenceKind.ControlBarrier
+        )
+        {
+            return;
+        }
+
+        FenceRenderer.SetGeometryWidthPercent(
+            line,
+            (double)e.NewValue.Value
+        );
+
+        _planningDocument.NotifyChanged();
+        MapCanvas.InvalidateVisual();
+
+        PlanningStatusText.Text =
+            "Đã đổi bề rộng hàng rào";
+    }
+
+
+    private void OnFenceBarrierHeightChanged(
+        object? sender,
+        NumericUpDownValueChangedEventArgs e)
+    {
+        if (
+            !_mainWindowUiReady ||
+            _updatingFenceProperties ||
+            e.NewValue == null
+        )
+        {
+            return;
+        }
+
+        if (
+            MapCanvas.SelectedPlanningObject
+                is not PlanningPolyline line ||
+            !FenceRenderer.TryGetKind(
+                line,
+                out FenceKind kind
+            ) ||
+            kind != FenceKind.ControlBarrier
+        )
+        {
+            return;
+        }
+
+        FenceRenderer.SetControlBarrierHeight(
+            line,
+            (double)e.NewValue.Value
+        );
+
+        _planningDocument.NotifyChanged();
+        MapCanvas.InvalidateVisual();
+
+        PlanningStatusText.Text =
+            "Đã đổi chiều cao barie";
+    }
+
+
     private void OnShapeStrokeWidthChanged(
         object? sender,
         NumericUpDownValueChangedEventArgs e)
@@ -6250,6 +6589,16 @@ _projectFolderExplorer
         SetToolButtonActive(
             LineToolButton,
             active == MapToolKind.Line
+        );
+
+        SetToolButtonActive(
+            FenceToolButton,
+            active == MapToolKind.FenceLooseBarbedWire ||
+            active == MapToolKind.FenceFallenTree2 ||
+            active == MapToolKind.FenceFallenTree1 ||
+            active == MapToolKind.FenceChevalDeFrise ||
+            active == MapToolKind.FenceTripWire ||
+            active == MapToolKind.FenceControlBarrier
         );
 
         SetToolButtonActive(

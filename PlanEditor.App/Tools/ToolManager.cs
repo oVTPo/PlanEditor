@@ -14,6 +14,12 @@ public enum MapToolKind
     GroupMove,
     Hand,
     Line,
+    FenceLooseBarbedWire,
+    FenceFallenTree2,
+    FenceFallenTree1,
+    FenceChevalDeFrise,
+    FenceTripWire,
+    FenceControlBarrier,
     Area,
     Circle,
     Square,
@@ -44,6 +50,7 @@ public sealed class ToolManager
     private readonly GroupMoveTool _groupMoveTool;
     private readonly HandTool _handTool;
     private readonly LineTool _lineTool;
+    private readonly FenceTool _fenceTool;
     private readonly AreaTool _areaTool;
     private readonly GeometricShapeAreaTool _geometricShapeTool;
     private readonly TacticalAttackTool _tacticalAttackTool;
@@ -125,6 +132,12 @@ public sealed class ToolManager
 
         _lineTool =
             new LineTool(
+                canvas,
+                document
+            );
+
+        _fenceTool =
+            new FenceTool(
                 canvas,
                 document
             );
@@ -287,6 +300,38 @@ public sealed class ToolManager
                 };
         }
 
+        if (
+            kind == MapToolKind.FenceLooseBarbedWire ||
+            kind == MapToolKind.FenceFallenTree2 ||
+            kind == MapToolKind.FenceFallenTree1 ||
+            kind == MapToolKind.FenceChevalDeFrise ||
+            kind == MapToolKind.FenceTripWire ||
+            kind == MapToolKind.FenceControlBarrier
+        )
+        {
+            _fenceTool.Kind =
+                kind switch
+                {
+                    MapToolKind.FenceFallenTree2 =>
+                        FenceKind.FallenTreeType2,
+
+                    MapToolKind.FenceFallenTree1 =>
+                        FenceKind.FallenTreeType1,
+
+                    MapToolKind.FenceChevalDeFrise =>
+                        FenceKind.ChevalDeFrise,
+
+                    MapToolKind.FenceTripWire =>
+                        FenceKind.TripWire,
+
+                    MapToolKind.FenceControlBarrier =>
+                        FenceKind.ControlBarrier,
+
+                    _ =>
+                        FenceKind.LooseBarbedWire
+                };
+        }
+
         _activeTool =
             kind switch
             {
@@ -298,6 +343,24 @@ public sealed class ToolManager
 
                 MapToolKind.Line =>
                     _lineTool,
+
+                MapToolKind.FenceLooseBarbedWire =>
+                    _fenceTool,
+
+                MapToolKind.FenceFallenTree2 =>
+                    _fenceTool,
+
+                MapToolKind.FenceFallenTree1 =>
+                    _fenceTool,
+
+                MapToolKind.FenceChevalDeFrise =>
+                    _fenceTool,
+
+                MapToolKind.FenceTripWire =>
+                    _fenceTool,
+
+                MapToolKind.FenceControlBarrier =>
+                    _fenceTool,
 
                 MapToolKind.Area =>
                     _areaTool,

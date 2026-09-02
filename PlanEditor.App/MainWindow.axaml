@@ -339,6 +339,7 @@
                         EnableCache="True"/>
                     </Button>
 
+
                     <!-- ARROW -->
                     <Button
                         x:Name="ArrowToolButton"
@@ -413,95 +414,83 @@
                                 Margin="0,0,-1,-1"/>
                         </Grid>
 
-                       <Button.ContextFlyout>
-                        <Flyout Placement="Bottom">
-                            <StackPanel
-                                Orientation="Horizontal"
-                                Spacing="4"
-                                Margin="4">
+                        <Button.ContextFlyout>
+                            <Flyout Placement="Bottom">
+                                <StackPanel
+                                    MinWidth="170"
+                                    Spacing="2"
+                                    Margin="4">
 
-                                <!-- ELIP / TRÒN -->
-                                <Button
-                                    Width="36"
-                                    Height="36"
-                                    Padding="0"
-                                    HorizontalContentAlignment="Center"
-                                    VerticalContentAlignment="Center"
-                                    Click="OnGeometricCircleToolClick">
+                                    <Button
+                                        Height="34"
+                                        HorizontalContentAlignment="Stretch"
+                                        Click="OnGeometricCircleToolClick">
+                                        <Grid ColumnDefinitions="30,*">
+                                            <Ellipse
+                                                Width="17"
+                                                Height="17"
+                                                Stroke="#30343B"
+                                                StrokeThickness="1.5"
+                                                HorizontalAlignment="Center"
+                                                VerticalAlignment="Center"/>
+                                            <TextBlock
+                                                Grid.Column="1"
+                                                Text="Elip / hình tròn"
+                                                FontSize="11"
+                                                VerticalAlignment="Center"/>
+                                        </Grid>
+                                    </Button>
 
-                                    <Grid
-                                        Width="20"
-                                        Height="20">
+                                    <Button
+                                        Height="34"
+                                        HorizontalContentAlignment="Stretch"
+                                        Click="OnGeometricSquareToolClick">
+                                        <Grid ColumnDefinitions="30,*">
+                                            <Rectangle
+                                                Width="16"
+                                                Height="16"
+                                                Stroke="#30343B"
+                                                StrokeThickness="1.5"
+                                                RadiusX="1"
+                                                RadiusY="1"
+                                                HorizontalAlignment="Center"
+                                                VerticalAlignment="Center"/>
+                                            <TextBlock
+                                                Grid.Column="1"
+                                                Text="Hình vuông"
+                                                FontSize="11"
+                                                VerticalAlignment="Center"/>
+                                        </Grid>
+                                    </Button>
 
-                                        <Ellipse
-                                            Width="17"
-                                            Height="17"
-                                            Stroke="#30343B"
-                                            StrokeThickness="1.5"
-                                            HorizontalAlignment="Center"
-                                            VerticalAlignment="Center"/>
+                                    <Button
+                                        Height="34"
+                                        HorizontalContentAlignment="Stretch"
+                                        Click="OnGeometricHexagonToolClick">
+                                        <Grid ColumnDefinitions="30,*">
+                                            <Path
+                                                Width="18"
+                                                Height="18"
+                                                Data="M11,2 L18.8,6.5 L18.8,15.5 L11,20 L3.2,15.5 L3.2,6.5 Z"
+                                                Stroke="#30343B"
+                                                StrokeThickness="1.5"
+                                                StrokeLineCap="Round"
+                                                StrokeJoin="Round"
+                                                Fill="Transparent"
+                                                Stretch="Uniform"
+                                                HorizontalAlignment="Center"
+                                                VerticalAlignment="Center"/>
+                                            <TextBlock
+                                                Grid.Column="1"
+                                                Text="Hình lục giác"
+                                                FontSize="11"
+                                                VerticalAlignment="Center"/>
+                                        </Grid>
+                                    </Button>
 
-                                    </Grid>
-                                </Button>
-
-                                <!-- VUÔNG -->
-                                <Button
-                                    Width="36"
-                                    Height="36"
-                                    Padding="0"
-                                    HorizontalContentAlignment="Center"
-                                    VerticalContentAlignment="Center"
-                                    Click="OnGeometricSquareToolClick">
-
-                                    <Grid
-                                        Width="20"
-                                        Height="20">
-
-                                        <Rectangle
-                                            Width="16"
-                                            Height="16"
-                                            Stroke="#30343B"
-                                            StrokeThickness="1.5"
-                                            RadiusX="1"
-                                            RadiusY="1"
-                                            HorizontalAlignment="Center"
-                                            VerticalAlignment="Center"/>
-
-                                    </Grid>
-                                </Button>
-
-                                <!-- LỤC GIÁC -->
-                                <Button
-                                    Width="36"
-                                    Height="36"
-                                    Padding="0"
-                                    HorizontalContentAlignment="Center"
-                                    VerticalContentAlignment="Center"
-                                    Click="OnGeometricHexagonToolClick">
-
-                                    <Grid
-                                        Width="20"
-                                        Height="20">
-
-                                        <Path
-                                            Width="18"
-                                            Height="18"
-                                            Data="M11,2 L18.8,6.5 L18.8,15.5 L11,20 L3.2,15.5 L3.2,6.5 Z"
-                                            Stroke="#30343B"
-                                            StrokeThickness="1.5"
-                                            StrokeLineCap="Round"
-                                            StrokeJoin="Round"
-                                            Fill="Transparent"
-                                            Stretch="Uniform"
-                                            HorizontalAlignment="Center"
-                                            VerticalAlignment="Center"/>
-
-                                    </Grid>
-                                </Button>
-
-                            </StackPanel>
-                        </Flyout>
-                    </Button.ContextFlyout>
+                                </StackPanel>
+                            </Flyout>
+                        </Button.ContextFlyout>
                     </Button>
 
                     <!-- AREA -->
@@ -1235,8 +1224,213 @@
                     </Button.ContextFlyout>
 
                 </Button>
+                <!-- FENCE -->
+                <Button
+                    x:Name="FenceToolButton"
+                    Classes="tool"
+                    Click="OnFenceToolClick"
+                    ToolTip.Tip="Hàng rào thép gai bùng nhùng • Chuột phải để đổi loại">
 
-                    <!-- BRIDGE -->
+                    <Grid Width="22" Height="22">
+
+                        <!-- THÉP GAI BÙNG NHÙNG -->
+                        <Grid
+                            x:Name="FenceLooseBarbedWireIcon"
+                            Width="20"
+                            Height="20">
+                            <svg:Svg
+                                Width="20"
+                                Height="20"
+                                Path="/Assets/Icons/Fence/hang-rao-thep-gai-bung-nhung.svg"
+                                Stretch="Uniform"
+                                EnableCache="True"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"/>  <Ellipse Width="6.2" Height="6.2" Stroke="#30343B" StrokeThickness="1.35" Fill="Transparent" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="14.6,5.0,0,0"/>
+                        </Grid>
+
+                        <!-- CÂY ĐỔ -->
+                        <svg:Svg
+                                x:Name="FenceFallenTree2Icon"
+                                IsVisible="False"
+                                Width="20"
+                                Height="20"
+                                Path="/Assets/Icons/Fence/hang-rao-bang-cay-do.svg"
+                                Stretch="Uniform"
+                                EnableCache="True"
+                                HorizontalAlignment="Center"/>
+                                
+                        <!-- CÂY ĐỔ CÓ MÌN -->
+                        <Grid
+                            x:Name="FenceFallenTree1Icon"
+                            IsVisible="False"
+                            Width="20"
+                            Height="20">
+                            <svg:Svg
+                                Width="20"
+                                Height="20"
+                                Path="/Assets/Icons/Fence/hang-rao-bang-cay-do-co-bo-tri-min.svg"
+                                Stretch="Uniform"
+                                EnableCache="True"
+                                HorizontalAlignment="Center"/>
+                        </Grid>
+
+                        <!-- CỰ MÃ -->
+                            <svg:Svg
+                                x:Name="FenceChevalDeFriseIcon"
+                                IsVisible="False"
+                                Width="20"
+                                Height="20"
+                                Path="/Assets/Icons/Fence/hang-rao-cu-ma.svg"
+                                Stretch="Uniform"
+                                EnableCache="True"
+                                HorizontalAlignment="Center"/>
+
+                        <!-- VƯỚNG CHÂN -->
+                            <svg:Svg
+                                x:Name="FenceTripWireIcon"
+                                IsVisible="False"
+                                Width="20"
+                                Height="20"
+                                Path="/Assets/Icons/Fence/hang-rao-vuong-chan.svg"
+                                Stretch="Uniform"
+                                EnableCache="True"
+                                HorizontalAlignment="Center"/>
+
+                        <!-- BARIE KIỂM SOÁT -->
+                        <Grid
+                            x:Name="FenceControlBarrierIcon"
+                            IsVisible="False"
+                            Width="20"
+                            Height="20">
+                            <svg:Svg
+                                Width="20"
+                                Height="20"
+                                Path="/Assets/Icons/Fence/barie-kiem-soat.svg"
+                                Stretch="Uniform"
+                                EnableCache="True"
+                                HorizontalAlignment="Center"/>
+                        </Grid>
+
+                        <!-- chỉ báo có context menu -->
+                        <Path
+                            Data="M0,4 L4,4 L4,0 Z"
+                            Fill="#73777C"
+                            Width="4"
+                            Height="4"
+                            Stretch="Fill"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Bottom"
+                            Margin="0,0,-1,-1"/>
+                    </Grid>
+
+                    <Button.ContextFlyout>
+                        <Flyout Placement="Bottom">
+                            <StackPanel
+                                Orientation="Horizontal"
+                                Spacing="4"
+                                Margin="4">
+
+                                <Button
+                                    Width="42"
+                                    Height="38"
+                                    Padding="0"
+                                    ToolTip.Tip="Hàng rào thép gai bùng nhùng"
+                                    HorizontalContentAlignment="Center"
+                                    VerticalContentAlignment="Center"
+                                    Click="OnFenceLooseBarbedWireClick">
+                                    <svg:Svg
+                                        Width="30"
+                                        Height="24"
+                                        Path="/Assets/Icons/Fence/hang-rao-thep-gai-bung-nhung.svg"
+                                        Stretch="Uniform"
+                                        EnableCache="True"/>
+                                </Button>
+
+                                <Button
+                                    Width="42"
+                                    Height="38"
+                                    Padding="0"
+                                    ToolTip.Tip="Hàng rào bằng cây đổ có bố trí mìn"
+                                    HorizontalContentAlignment="Center"
+                                    VerticalContentAlignment="Center"
+                                    Click="OnFenceFallenTree2Click">
+                                    <svg:Svg
+                                        Width="30"
+                                        Height="24"
+                                        Path="/Assets/Icons/Fence/hang-rao-bang-cay-do.svg"
+                                        Stretch="Uniform"
+                                        EnableCache="True"/>
+                                </Button>
+
+                                <Button
+                                    Width="42"
+                                    Height="38"
+                                    Padding="0"
+                                    ToolTip.Tip="Hàng rào cự mã"
+                                    HorizontalContentAlignment="Center"
+                                    VerticalContentAlignment="Center"
+                                    Click="OnFenceChevalDeFriseClick">
+                                    <svg:Svg
+                                        Width="30"
+                                        Height="24"
+                                        Path="/Assets/Icons/Fence/hang-rao-cu-ma.svg"
+                                        Stretch="Uniform"
+                                        EnableCache="True"/>
+                                </Button>
+
+                                <Button
+                                    Width="42"
+                                    Height="38"
+                                    Padding="0"
+                                    ToolTip.Tip="Hàng rào vướng chân"
+                                    HorizontalContentAlignment="Center"
+                                    VerticalContentAlignment="Center"
+                                    Click="OnFenceTripWireClick">
+                                    <svg:Svg
+                                        Width="30"
+                                        Height="24"
+                                        Path="/Assets/Icons/Fence/hang-rao-vuong-chan.svg"
+                                        Stretch="Uniform"
+                                        EnableCache="True"/>
+                                </Button>
+
+                                <Button
+                                    Width="42"
+                                    Height="38"
+                                    Padding="0"
+                                    ToolTip.Tip="Hàng rào bằng cây đổ có bố trí mìn"
+                                    HorizontalContentAlignment="Center"
+                                    VerticalContentAlignment="Center"
+                                    Click="OnFenceFallenTree1Click">
+                                    <svg:Svg
+                                        Width="30"
+                                        Height="24"
+                                        Path="/Assets/Icons/Fence/hang-rao-bang-cay-do-co-bo-tri-min.svg"
+                                        Stretch="Uniform"
+                                        EnableCache="True"/>
+                                </Button>
+
+                                <Button
+                                    Width="42"
+                                    Height="38"
+                                    Padding="0"
+                                    ToolTip.Tip="Barie kiểm soát"
+                                    HorizontalContentAlignment="Center"
+                                    VerticalContentAlignment="Center"
+                                    Click="OnFenceControlBarrierClick">
+                                    <svg:Svg
+                                        Width="30"
+                                        Height="24"
+                                        Path="/Assets/Icons/Fence/barie-kiem-soat.svg"
+                                        Stretch="Uniform"
+                                        EnableCache="True"/>
+                                </Button>
+
+                            </StackPanel>
+                        </Flyout>
+                    </Button.ContextFlyout>
+                </Button>
+
                     <Border
                         Width="1"
                         Height="24"
@@ -1453,6 +1647,84 @@
                             TextWrapping="Wrap"
                             Foreground="#60656B"
                             FontSize="12"/>
+
+                        <!-- ================================================= -->
+                        <!-- FENCE: cỡ nét và bề rộng hình học                 -->
+                        <!-- ================================================= -->
+                        <StackPanel
+                            x:Name="FencePropertyPanel"
+                            IsVisible="False"
+                            Spacing="12">
+
+                            <TextBlock
+                                x:Name="FencePropertyTitleText"
+                                Text="HÀNG RÀO"
+                                FontSize="10"
+                                FontWeight="Bold"
+                                Foreground="#777D84"
+                                TextWrapping="Wrap"/>
+
+                            <Border
+                                Height="1"
+                                Background="#E0E2E5"/>
+
+                            <Grid ColumnDefinitions="92,*">
+                                <TextBlock
+                                    Text="Cỡ nét"
+                                    FontSize="11"
+                                    Foreground="#5F656C"
+                                    VerticalAlignment="Center"/>
+
+                                <NumericUpDown
+                                    x:Name="FenceStrokeWidthEditor"
+                                    Grid.Column="1"
+                                    Minimum="0.5"
+                                    Maximum="12"
+                                    Increment="0.25"
+                                    FormatString="0.##"
+                                    ValueChanged="OnFenceStrokeWidthChanged"/>
+                            </Grid>
+
+                            <Grid
+                                x:Name="FenceGeometryWidthRow"
+                                ColumnDefinitions="92,*">
+                                <TextBlock
+                                    Text="Bề rộng (%)"
+                                    FontSize="11"
+                                    Foreground="#5F656C"
+                                    VerticalAlignment="Center"/>
+
+                                <NumericUpDown
+                                    x:Name="FenceGeometryWidthEditor"
+                                    Grid.Column="1"
+                                    Minimum="25"
+                                    Maximum="300"
+                                    Increment="5"
+                                    FormatString="0.##"
+                                    ValueChanged="OnFenceGeometryWidthChanged"/>
+                            </Grid>
+
+                            <Grid
+                                x:Name="FenceBarrierHeightRow"
+                                IsVisible="False"
+                                ColumnDefinitions="92,*">
+                                <TextBlock
+                                    Text="Chiều cao"
+                                    FontSize="11"
+                                    Foreground="#5F656C"
+                                    VerticalAlignment="Center"/>
+
+                                <NumericUpDown
+                                    x:Name="FenceBarrierHeightEditor"
+                                    Grid.Column="1"
+                                    Minimum="8"
+                                    Maximum="120"
+                                    Increment="2"
+                                    FormatString="0.##"
+                                    ValueChanged="OnFenceBarrierHeightChanged"/>
+                            </Grid>
+                        </StackPanel>
+
 
                         <!-- ================================================= -->
                         <!-- SHAPE STYLE: LINE / AREA / ARROW                   -->

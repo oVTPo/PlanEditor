@@ -10235,6 +10235,22 @@ if (item is PlanningPolyline line)
         PlanningPolyline line,
         bool selected)
     {
+        /*
+         * Fence dùng PlanningPolyline nhưng có renderer ký hiệu riêng.
+         * Xử lý trước line thường để không lộ color/pattern của polyline.
+         */
+        if (
+            FenceRenderer.TryDraw(
+                context,
+                this,
+                line,
+                selected
+            )
+        )
+        {
+            return;
+        }
+
         if (line.Points.Count < 2)
             return;
 
