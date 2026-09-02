@@ -59,6 +59,9 @@ public partial class MainWindow : Window
     private MapToolKind _toolBeforePrintPreview =
         MapToolKind.Select;
 
+    private MapToolKind _geometricShapeToolKind =
+        MapToolKind.Circle;
+
 
     private bool _inlineTextEditorActive;
     private WorldPoint _pendingTextWorldPosition;
@@ -2911,11 +2914,86 @@ _projectFolderExplorer
         Avalonia.Interactivity.RoutedEventArgs e)
     {
         MapCanvas.SetPlanningTool(
-            MapToolKind.Circle
+            _geometricShapeToolKind
         );
 
         UpdatePlanningUi();
     }
+
+    private void OnGeometricCircleToolClick(
+        object? sender,
+        Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        SetGeometricShapeTool(
+            MapToolKind.Circle
+        );
+    }
+
+    private void OnGeometricSquareToolClick(
+        object? sender,
+        Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        SetGeometricShapeTool(
+            MapToolKind.Square
+        );
+    }
+
+    private void OnGeometricHexagonToolClick(
+        object? sender,
+        Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        SetGeometricShapeTool(
+            MapToolKind.Hexagon
+        );
+    }
+
+    private void SetGeometricShapeTool(
+        MapToolKind kind)
+    {
+        _geometricShapeToolKind =
+            kind;
+
+        UpdateGeometricShapeButtonUi();
+
+        MapCanvas.SetPlanningTool(
+            kind
+        );
+
+        UpdatePlanningUi();
+        MapCanvas.Focus();
+    }
+
+    private void UpdateGeometricShapeButtonUi()
+    {
+        GeometricCircleIcon.IsVisible =
+            _geometricShapeToolKind ==
+                MapToolKind.Circle;
+
+        GeometricSquareIcon.IsVisible =
+            _geometricShapeToolKind ==
+                MapToolKind.Square;
+
+        GeometricHexagonIcon.IsVisible =
+            _geometricShapeToolKind ==
+                MapToolKind.Hexagon;
+
+        Avalonia.Controls.ToolTip.SetTip(
+            CircleToolButton,
+            _geometricShapeToolKind switch
+            {
+                MapToolKind.Square =>
+                    "Hình vuông • Chuột phải để đổi hình",
+
+                MapToolKind.Hexagon =>
+                    "Hình lục giác • Chuột phải để đổi hình",
+
+                _ =>
+                    "Elip / hình tròn • Chuột phải để đổi hình"
+            }
+        );
+    }
+
+
 
     private void OnTacticalAttackToolClick(
         object? sender,
@@ -4105,17 +4183,26 @@ _projectFolderExplorer
                 MapToolKind.DoorDouble =>
                     "Cửa 2 cánh",
 
+                MapToolKind.BridgeNormal =>
+                    "Cầu thường",
+
                 MapToolKind.BridgeIron =>
-                    "Cầu cơ bản",
+                    "Cầu sắt",
 
                 MapToolKind.BridgeSubmersible =>
-                    "Cầu dầm",
+                    "Cầu ngầm",
 
                 MapToolKind.BridgeSuspension =>
-                    "Cầu giàn",
+                    "Cầu treo",
+
+                MapToolKind.BridgeBamboo =>
+                    "Cầu tre / cầu một cây",
 
                 MapToolKind.BridgePontoon =>
-                    "Cầu phao",
+                    "Cầu nổi",
+
+                MapToolKind.BridgeDestroyed =>
+                    "Cầu bị phá",
 
                 _ =>
                     "Chọn"
@@ -4143,6 +4230,9 @@ _projectFolderExplorer
             false;
 
         AreaFillPropertyPanel.IsVisible =
+            false;
+
+        BridgePropertyPanel.IsVisible =
             false;
 
         if (selected == null)
@@ -4259,7 +4349,17 @@ _projectFolderExplorer
                     polygon.AreaKind switch
                     {
                         PlanningAreaKind.Circle =>
-                            "HÌNH TRÒN",
+                            polygon.Name switch
+                            {
+                                "Hình vuông" =>
+                                    "HÌNH VUÔNG",
+
+                                "Hình lục giác" =>
+                                    "HÌNH LỤC GIÁC",
+
+                                _ =>
+                                    "HÌNH ELIP / TRÒN"
+                            },
 
                         PlanningAreaKind.Vegetation =>
                             "VÙNG CÂY",
@@ -6164,7 +6264,9 @@ _projectFolderExplorer
 
         SetToolButtonActive(
             CircleToolButton,
-            active == MapToolKind.Circle
+            active == MapToolKind.Circle ||
+            active == MapToolKind.Square ||
+            active == MapToolKind.Hexagon
         );
 
         SetToolButtonActive(

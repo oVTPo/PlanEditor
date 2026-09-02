@@ -34,6 +34,49 @@ public sealed class SelectTool :
     private List<WorldPoint>? _dragCirclePointsBefore;
     private WorldPoint _dragCircleCenterBefore;
     private double _dragCircleStartDistance;
+    private double _dragCircleStartAngle;
+
+    private ShapeTransformMode
+        _shapeTransformMode =
+            ShapeTransformMode.None;
+
+    private enum ShapeTransformMode
+    {
+        None,
+        Scale,
+        Rotate
+    }
+
+    private enum ShapeScaleHandle
+    {
+        None,
+        TopLeft,
+        TopRight,
+        BottomRight,
+        BottomLeft
+    }
+
+    private ShapeScaleHandle
+        _dragShapeScaleHandle =
+            ShapeScaleHandle.None;
+
+    private List<Point>?
+        _dragShapeScreenPointsBefore;
+
+    private Point
+        _dragShapeCenterScreenBefore;
+
+    private Vector
+        _dragShapeAxisX;
+
+    private Vector
+        _dragShapeAxisY;
+
+    private double
+        _dragShapeHalfWidthBefore;
+
+    private double
+        _dragShapeHalfHeightBefore;
 
     private TextTransformMode
         _textTransformMode =
@@ -261,27 +304,54 @@ public sealed class SelectTool :
 
         /*
          * PRIORITY 0.25:
-         * Handle scale riêng của Circle đang selected.
-         * Scale đồng đều quanh tâm để luôn giữ hình tròn chuẩn.
+         * Nhóm geometric shape (Ellipse / Rectangle / Hexagon)
+         * hiện dùng PlanningAreaKind.Circle.
+         *
+         * Rotation được kiểm tra trước Scale để hai handle
+         * không tranh hit-test khi shape nhỏ.
          */
         if (
             _manager.SelectedObject
                 is PlanningPolygon selectedCircle &&
             selectedCircle.AreaKind ==
                 PlanningAreaKind.Circle &&
-            !selectedCircle.IsLocked &&
-            TryHitCircleScaleHandle(
-                selectedCircle,
-                screen)
+            !selectedCircle.IsLocked
         )
         {
-            BeginCircleScale(
-                e,
-                selectedCircle,
-                screen
-            );
+            if (
+                TryHitCircleRotationHandle(
+                    selectedCircle,
+                    screen
+                )
+            )
+            {
+                BeginCircleRotate(
+                    e,
+                    selectedCircle,
+                    screen
+                );
 
-            return true;
+                return true;
+            }
+
+            if (
+                TryHitCircleScaleHandle(
+                    selectedCircle,
+                    screen,
+                    out ShapeScaleHandle
+                        scaleHandle
+                )
+            )
+            {
+                BeginCircleScale(
+                    e,
+                    selectedCircle,
+                    scaleHandle,
+                    screen
+                );
+
+                return true;
+            }
         }
 
         /*
@@ -475,9 +545,23 @@ public sealed class SelectTool :
 
         if (_dragCircle != null)
         {
-            ScaleCircle(
-                screen
-            );
+            if (
+                _shapeTransformMode ==
+                    ShapeTransformMode.Rotate
+            )
+            {
+                RotateCircle(
+                    screen,
+                    e.KeyModifiers
+                );
+            }
+            else
+            {
+                ScaleCircle(
+                    screen,
+                    e.KeyModifiers
+                );
+            }
 
             return true;
         }
@@ -1339,63 +1423,415 @@ public sealed class SelectTool :
         );
     }
 
-    private bool TryHitCircleScaleHandle(
-        PlanningPolygon circle,
+    private bool TryHitCircleRotationHandle(
+        PlanningPolygon shape,
         Point screen)
     {
         if (
-            circle.AreaKind !=
+            shape.AreaKind !=
                 PlanningAreaKind.Circle ||
-            circle.Points.Count < 3
+            shape.Points.Count < 3
         )
         {
             return false;
         }
 
-        GetCircleCenterAndRadius(
-            circle,
-            out WorldPoint center,
-            out double radius
-        );
+        if (!TryGetShapeHelperFrame(
+                shape,
+                out Point topLeft,
+                out Point topRight,
+                out _,
+                out _,
+                out Vector outward))
+        {
+            return false;
+        }
 
-        Point handle =
-            _canvas.WorldToScreen(
-                center.X + radius,
-                center.Y
+        Point topMid =
+            new Point(
+                (topLeft.X + topRight.X) / 2.0,
+                (topLeft.Y + topRight.Y) / 2.0
             );
 
-        const double hitRadius =
-            10.0;
+        Point handle =
+            topMid +
+            outward * 28.0;
 
-        return DistanceSquared(
-            screen,
-            handle
-        ) <=
-            hitRadius * hitRadius;
+        const double hitRadius =
+            12.0;
+
+        return
+            DistanceSquared(
+                screen,
+                handle
+            ) <=
+            hitRadius *
+            hitRadius;
     }
+
+
+    private bool TryGetShapeHelperFrame(
+        PlanningPolygon shape,
+        out Point topLeft,
+        out Point topRight,
+        out Point bottomRight,
+        out Point bottomLeft,
+        out Vector outward)
+    {
+        topLeft = default;
+        topRight = default;
+        bottomRight = default;
+        bottomLeft = default;
+        outward = default;
+
+        if (shape.Points.Count < 3)
+            return false;
+
+        var screenPoints =
+            new List<Point>(
+                shape.Points.Count
+            );
+
+        double centerX = 0.0;
+        double centerY = 0.0;
+
+        foreach (
+            WorldPoint world
+            in shape.Points)
+        {
+            Point p =
+                _canvas.WorldToScreen(
+                    world.X,
+                    world.Y
+                );
+
+            screenPoints.Add(
+                p
+            );
+
+            centerX += p.X;
+            centerY += p.Y;
+        }
+
+        Point center =
+            new Point(
+                centerX /
+                    screenPoints.Count,
+                centerY /
+                    screenPoints.Count
+            );
+
+        Vector axisX;
+
+        /*
+         * Rectangle:
+         * point[0] -> point[1] chính là cạnh trên.
+         *
+         * Hexagon / ellipse:
+         * point[0] được sinh tại góc 0 độ,
+         * nên vector center -> point[0] là trục ngang local.
+         */
+        if (screenPoints.Count == 4)
+        {
+            axisX =
+                screenPoints[1] -
+                screenPoints[0];
+        }
+        else
+        {
+            axisX =
+                screenPoints[0] -
+                center;
+        }
+
+        double axisLength =
+            Math.Sqrt(
+                axisX.X * axisX.X +
+                axisX.Y * axisX.Y
+            );
+
+        if (axisLength < 0.001)
+            return false;
+
+        axisX =
+            new Vector(
+                axisX.X /
+                    axisLength,
+                axisX.Y /
+                    axisLength
+            );
+
+        Vector axisY =
+            new Vector(
+                -axisX.Y,
+                axisX.X
+            );
+
+        double minX =
+            double.PositiveInfinity;
+
+        double maxX =
+            double.NegativeInfinity;
+
+        double minY =
+            double.PositiveInfinity;
+
+        double maxY =
+            double.NegativeInfinity;
+
+        foreach (
+            Point p
+            in screenPoints)
+        {
+            Vector d =
+                p -
+                center;
+
+            double px =
+                d.X * axisX.X +
+                d.Y * axisX.Y;
+
+            double py =
+                d.X * axisY.X +
+                d.Y * axisY.Y;
+
+            minX =
+                Math.Min(
+                    minX,
+                    px
+                );
+
+            maxX =
+                Math.Max(
+                    maxX,
+                    px
+                );
+
+            minY =
+                Math.Min(
+                    minY,
+                    py
+                );
+
+            maxY =
+                Math.Max(
+                    maxY,
+                    py
+                );
+        }
+
+        topLeft =
+            center +
+            axisX * minX +
+            axisY * minY;
+
+        topRight =
+            center +
+            axisX * maxX +
+            axisY * minY;
+
+        bottomRight =
+            center +
+            axisX * maxX +
+            axisY * maxY;
+
+        bottomLeft =
+            center +
+            axisX * minX +
+            axisY * maxY;
+
+        /*
+         * outward phải đi ra ngoài cạnh "top".
+         * axisY tăng theo hướng top -> bottom, nên outward = -axisY.
+         */
+        outward =
+            new Vector(
+                -axisY.X,
+                -axisY.Y
+            );
+
+        return true;
+    }
+
+
+    private void GetShapeScreenBounds(
+        PlanningPolygon shape,
+        out double minX,
+        out double minY,
+        out double maxX,
+        out double maxY)
+    {
+        minX = double.PositiveInfinity;
+        minY = double.PositiveInfinity;
+        maxX = double.NegativeInfinity;
+        maxY = double.NegativeInfinity;
+
+        foreach (
+            WorldPoint point
+            in shape.Points)
+        {
+            Point p =
+                _canvas.WorldToScreen(
+                    point.X,
+                    point.Y
+                );
+
+            minX =
+                Math.Min(
+                    minX,
+                    p.X
+                );
+
+            minY =
+                Math.Min(
+                    minY,
+                    p.Y
+                );
+
+            maxX =
+                Math.Max(
+                    maxX,
+                    p.X
+                );
+
+            maxY =
+                Math.Max(
+                    maxY,
+                    p.Y
+                );
+        }
+    }
+
+
+    private bool TryHitCircleScaleHandle(
+        PlanningPolygon shape,
+        Point screen,
+        out ShapeScaleHandle handleKind)
+    {
+        handleKind =
+            ShapeScaleHandle.None;
+
+        if (
+            shape.AreaKind !=
+                PlanningAreaKind.Circle ||
+            shape.Points.Count < 3
+        )
+        {
+            return false;
+        }
+
+        if (!TryGetShapeHelperFrame(
+                shape,
+                out Point topLeft,
+                out Point topRight,
+                out Point bottomRight,
+                out Point bottomLeft,
+                out _))
+        {
+            return false;
+        }
+
+        const double hitRadius =
+            13.0;
+
+        double r2 =
+            hitRadius *
+            hitRadius;
+
+        if (
+            DistanceSquared(
+                screen,
+                topLeft
+            ) <= r2
+        )
+        {
+            handleKind =
+                ShapeScaleHandle.TopLeft;
+
+            return true;
+        }
+
+        if (
+            DistanceSquared(
+                screen,
+                topRight
+            ) <= r2
+        )
+        {
+            handleKind =
+                ShapeScaleHandle.TopRight;
+
+            return true;
+        }
+
+        if (
+            DistanceSquared(
+                screen,
+                bottomRight
+            ) <= r2
+        )
+        {
+            handleKind =
+                ShapeScaleHandle.BottomRight;
+
+            return true;
+        }
+
+        if (
+            DistanceSquared(
+                screen,
+                bottomLeft
+            ) <= r2
+        )
+        {
+            handleKind =
+                ShapeScaleHandle.BottomLeft;
+
+            return true;
+        }
+
+        return false;
+    }
+
+
 
     private void BeginCircleScale(
         PointerPressedEventArgs e,
-        PlanningPolygon circle,
+        PlanningPolygon shape,
+        ShapeScaleHandle handleKind,
         Point screen)
     {
         GetCircleCenterAndRadius(
-            circle,
+            shape,
             out _dragCircleCenterBefore,
             out _
         );
 
         _dragCircle =
-            circle;
+            shape;
+
+        _shapeTransformMode =
+            ShapeTransformMode.Scale;
+
+        _dragShapeScaleHandle =
+            handleKind;
 
         _dragCirclePointsBefore =
             new List<WorldPoint>(
-                circle.Points.Count
+                shape.Points.Count
             );
+
+        _dragShapeScreenPointsBefore =
+            new List<Point>(
+                shape.Points.Count
+            );
+
+        double centerX = 0.0;
+        double centerY = 0.0;
 
         foreach (
             WorldPoint point
-            in circle.Points)
+            in shape.Points)
         {
             _dragCirclePointsBefore.Add(
                 new WorldPoint(
@@ -1403,19 +1839,143 @@ public sealed class SelectTool :
                     point.Y
                 )
             );
+
+            Point p =
+                _canvas.WorldToScreen(
+                    point.X,
+                    point.Y
+                );
+
+            _dragShapeScreenPointsBefore.Add(
+                p
+            );
+
+            centerX += p.X;
+            centerY += p.Y;
         }
 
-        Point centerScreen =
-            _canvas.WorldToScreen(
-                _dragCircleCenterBefore.X,
-                _dragCircleCenterBefore.Y
+        _dragShapeCenterScreenBefore =
+            new Point(
+                centerX /
+                    shape.Points.Count,
+                centerY /
+                    shape.Points.Count
+            );
+
+        /*
+         * Trục local của shape:
+         * - rectangle: cạnh point0 -> point1
+         * - ellipse/hexagon: center -> point0
+         */
+        if (
+            _dragShapeScreenPointsBefore.Count ==
+                4
+        )
+        {
+            _dragShapeAxisX =
+                _dragShapeScreenPointsBefore[1] -
+                _dragShapeScreenPointsBefore[0];
+        }
+        else
+        {
+            _dragShapeAxisX =
+                _dragShapeScreenPointsBefore[0] -
+                _dragShapeCenterScreenBefore;
+        }
+
+        double axisLength =
+            Math.Sqrt(
+                _dragShapeAxisX.X *
+                    _dragShapeAxisX.X +
+                _dragShapeAxisX.Y *
+                    _dragShapeAxisX.Y
+            );
+
+        if (axisLength < 0.001)
+        {
+            _dragShapeAxisX =
+                new Vector(
+                    1.0,
+                    0.0
+                );
+        }
+        else
+        {
+            _dragShapeAxisX =
+                new Vector(
+                    _dragShapeAxisX.X /
+                        axisLength,
+                    _dragShapeAxisX.Y /
+                        axisLength
+                );
+        }
+
+        _dragShapeAxisY =
+            new Vector(
+                -_dragShapeAxisX.Y,
+                _dragShapeAxisX.X
+            );
+
+        _dragShapeHalfWidthBefore =
+            0.0;
+
+        _dragShapeHalfHeightBefore =
+            0.0;
+
+        foreach (
+            Point p
+            in _dragShapeScreenPointsBefore)
+        {
+            Vector d =
+                p -
+                _dragShapeCenterScreenBefore;
+
+            double localX =
+                d.X *
+                    _dragShapeAxisX.X +
+                d.Y *
+                    _dragShapeAxisX.Y;
+
+            double localY =
+                d.X *
+                    _dragShapeAxisY.X +
+                d.Y *
+                    _dragShapeAxisY.Y;
+
+            _dragShapeHalfWidthBefore =
+                Math.Max(
+                    _dragShapeHalfWidthBefore,
+                    Math.Abs(
+                        localX
+                    )
+                );
+
+            _dragShapeHalfHeightBefore =
+                Math.Max(
+                    _dragShapeHalfHeightBefore,
+                    Math.Abs(
+                        localY
+                    )
+                );
+        }
+
+        _dragShapeHalfWidthBefore =
+            Math.Max(
+                3.0,
+                _dragShapeHalfWidthBefore
+            );
+
+        _dragShapeHalfHeightBefore =
+            Math.Max(
+                3.0,
+                _dragShapeHalfHeightBefore
             );
 
         _dragCircleStartDistance =
             Math.Max(
                 1.0,
                 Distance(
-                    centerScreen,
+                    _dragShapeCenterScreenBefore,
                     screen
                 )
             );
@@ -1444,20 +2004,95 @@ public sealed class SelectTool :
         );
     }
 
-    private void ScaleCircle(
+
+    private void BeginCircleRotate(
+        PointerPressedEventArgs e,
+        PlanningPolygon shape,
         Point screen)
     {
-        PlanningPolygon? circle =
+        GetCircleCenterAndRadius(
+            shape,
+            out _dragCircleCenterBefore,
+            out _
+        );
+
+        _dragCircle =
+            shape;
+
+        _shapeTransformMode =
+            ShapeTransformMode.Rotate;
+
+        _dragCirclePointsBefore =
+            new List<WorldPoint>(
+                shape.Points.Count
+            );
+
+        foreach (
+            WorldPoint point
+            in shape.Points)
+        {
+            _dragCirclePointsBefore.Add(
+                new WorldPoint(
+                    point.X,
+                    point.Y
+                )
+            );
+        }
+
+        Point centerScreen =
+            _canvas.WorldToScreen(
+                _dragCircleCenterBefore.X,
+                _dragCircleCenterBefore.Y
+            );
+
+        _dragCircleStartAngle =
+            Math.Atan2(
+                screen.Y -
+                    centerScreen.Y,
+                screen.X -
+                    centerScreen.X
+            );
+
+        _dragObject = null;
+        _dragVertexIndex = -1;
+        _dragDoor = null;
+        _dragText = null;
+        _dragSymbol = null;
+        _dragBezierArrow = null;
+        _dragBezierPolygon = null;
+        _dragBezierAnchorIndex = -1;
+        _dragBezierHandleKind =
+            BezierHandleKind.None;
+
+        _dragging = true;
+        _dragChanged = false;
+
+        _canvas.Cursor =
+            new Cursor(
+                StandardCursorType.Hand
+            );
+
+        e.Pointer.Capture(
+            _canvas
+        );
+    }
+
+
+    private void RotateCircle(
+        Point screen,
+        KeyModifiers modifiers)
+    {
+        PlanningPolygon? shape =
             _dragCircle;
 
         List<WorldPoint>? source =
             _dragCirclePointsBefore;
 
         if (
-            circle == null ||
+            shape == null ||
             source == null ||
             source.Count < 3 ||
-            circle.Points.Count !=
+            shape.Points.Count !=
                 source.Count
         )
         {
@@ -1470,33 +2105,54 @@ public sealed class SelectTool :
                 _dragCircleCenterBefore.Y
             );
 
-        double currentDistance =
-            Distance(
-                centerScreen,
-                screen
+        double currentAngle =
+            Math.Atan2(
+                screen.Y -
+                    centerScreen.Y,
+                screen.X -
+                    centerScreen.X
             );
+
+        double delta =
+            currentAngle -
+            _dragCircleStartAngle;
 
         /*
-         * Giữ bán kính tối thiểu 6 px để circle không co về 0.
+         * Shift = snap mỗi 15 độ.
          */
-        currentDistance =
-            Math.Max(
-                6.0,
-                currentDistance
+        if (
+            modifiers.HasFlag(
+                KeyModifiers.Shift
+            )
+        )
+        {
+            double step =
+                Math.PI /
+                12.0;
+
+            delta =
+                Math.Round(
+                    delta /
+                    step
+                ) *
+                step;
+        }
+
+        /*
+         * World Y và screen Y ngược chiều nhau.
+         * Dùng -delta để shape quay theo đúng hướng kéo chuột trên màn hình.
+         */
+        double worldAngle =
+            -delta;
+
+        double cos =
+            Math.Cos(
+                worldAngle
             );
 
-        double scale =
-            currentDistance /
-            Math.Max(
-                1.0,
-                _dragCircleStartDistance
-            );
-
-        scale =
-            Math.Clamp(
-                scale,
-                0.02,
-                100.0
+        double sin =
+            Math.Sin(
+                worldAngle
             );
 
         for (
@@ -1508,16 +2164,23 @@ public sealed class SelectTool :
             WorldPoint original =
                 source[i];
 
-            circle.Points[i] =
+            double dx =
+                original.X -
+                _dragCircleCenterBefore.X;
+
+            double dy =
+                original.Y -
+                _dragCircleCenterBefore.Y;
+
+            shape.Points[i] =
                 new WorldPoint(
                     _dragCircleCenterBefore.X +
-                        (original.X -
-                         _dragCircleCenterBefore.X) *
-                        scale,
+                        dx * cos -
+                        dy * sin,
+
                     _dragCircleCenterBefore.Y +
-                        (original.Y -
-                         _dragCircleCenterBefore.Y) *
-                        scale
+                        dx * sin +
+                        dy * cos
                 );
         }
 
@@ -1526,6 +2189,168 @@ public sealed class SelectTool :
 
         _canvas.InvalidateVisual();
     }
+
+
+    private void ScaleCircle(
+        Point screen,
+        KeyModifiers modifiers)
+    {
+        PlanningPolygon? shape =
+            _dragCircle;
+
+        List<Point>? source =
+            _dragShapeScreenPointsBefore;
+
+        if (
+            shape == null ||
+            source == null ||
+            source.Count < 3 ||
+            shape.Points.Count !=
+                source.Count
+        )
+        {
+            return;
+        }
+
+        Vector pointer =
+            screen -
+            _dragShapeCenterScreenBefore;
+
+        double projectedX =
+            pointer.X *
+                _dragShapeAxisX.X +
+            pointer.Y *
+                _dragShapeAxisX.Y;
+
+        double projectedY =
+            pointer.X *
+                _dragShapeAxisY.X +
+            pointer.Y *
+                _dragShapeAxisY.Y;
+
+        /*
+         * Corner handle scale:
+         * mặc định X/Y độc lập => kéo thoải mái thành ellipse,
+         * rectangle dài/ngắn, hexagon dẹt/cao.
+         */
+        double nextHalfWidth =
+            Math.Max(
+                6.0,
+                Math.Abs(
+                    projectedX
+                )
+            );
+
+        double nextHalfHeight =
+            Math.Max(
+                6.0,
+                Math.Abs(
+                    projectedY
+                )
+            );
+
+        double scaleX =
+            nextHalfWidth /
+            Math.Max(
+                1.0,
+                _dragShapeHalfWidthBefore
+            );
+
+        double scaleY =
+            nextHalfHeight /
+            Math.Max(
+                1.0,
+                _dragShapeHalfHeightBefore
+            );
+
+        /*
+         * Shift = giữ tỷ lệ gốc.
+         * Dùng hướng thay đổi mạnh hơn làm scale chung.
+         */
+        if (
+            modifiers.HasFlag(
+                KeyModifiers.Shift
+            )
+        )
+        {
+            double uniform =
+                Math.Abs(
+                    scaleX - 1.0
+                ) >=
+                Math.Abs(
+                    scaleY - 1.0
+                )
+                    ? scaleX
+                    : scaleY;
+
+            scaleX =
+                uniform;
+
+            scaleY =
+                uniform;
+        }
+
+        scaleX =
+            Math.Clamp(
+                scaleX,
+                0.02,
+                100.0
+            );
+
+        scaleY =
+            Math.Clamp(
+                scaleY,
+                0.02,
+                100.0
+            );
+
+        for (
+            int i = 0;
+            i < source.Count;
+            i++
+        )
+        {
+            Vector d =
+                source[i] -
+                _dragShapeCenterScreenBefore;
+
+            double localX =
+                d.X *
+                    _dragShapeAxisX.X +
+                d.Y *
+                    _dragShapeAxisX.Y;
+
+            double localY =
+                d.X *
+                    _dragShapeAxisY.X +
+                d.Y *
+                    _dragShapeAxisY.Y;
+
+            Point nextScreen =
+                _dragShapeCenterScreenBefore +
+                _dragShapeAxisX *
+                    (localX * scaleX) +
+                _dragShapeAxisY *
+                    (localY * scaleY);
+
+            Point world =
+                _canvas.ScreenToWorld(
+                    nextScreen
+                );
+
+            shape.Points[i] =
+                new WorldPoint(
+                    world.X,
+                    world.Y
+                );
+        }
+
+        _dragChanged =
+            true;
+
+        _canvas.InvalidateVisual();
+    }
+
 
     private static void GetCircleCenterAndRadius(
         PlanningPolygon circle,
@@ -1886,6 +2711,15 @@ Point center =
             null;
 
         _dragCirclePointsBefore =
+            null;
+
+        _shapeTransformMode =
+            ShapeTransformMode.None;
+
+        _dragShapeScaleHandle =
+            ShapeScaleHandle.None;
+
+        _dragShapeScreenPointsBefore =
             null;
 
         _dragBezierArrow =

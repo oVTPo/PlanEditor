@@ -16,6 +16,8 @@ public enum MapToolKind
     Line,
     Area,
     Circle,
+    Square,
+    Hexagon,
     TacticalAttack,
     AreaVegetation,
     AreaWater,
@@ -43,7 +45,7 @@ public sealed class ToolManager
     private readonly HandTool _handTool;
     private readonly LineTool _lineTool;
     private readonly AreaTool _areaTool;
-    private readonly CircleAreaTool _circleTool;
+    private readonly GeometricShapeAreaTool _geometricShapeTool;
     private readonly TacticalAttackTool _tacticalAttackTool;
     private readonly PresetAreaTool _vegetationAreaTool;
     private readonly PresetAreaTool _waterAreaTool;
@@ -133,8 +135,8 @@ public sealed class ToolManager
                 document
             );
 
-        _circleTool =
-            new CircleAreaTool(
+        _geometricShapeTool =
+            new GeometricShapeAreaTool(
                 canvas,
                 document
             );
@@ -265,6 +267,26 @@ public sealed class ToolManager
         ActiveToolKind =
             kind;
 
+        if (
+            kind == MapToolKind.Circle ||
+            kind == MapToolKind.Square ||
+            kind == MapToolKind.Hexagon
+        )
+        {
+            _geometricShapeTool.ShapeKind =
+                kind switch
+                {
+                    MapToolKind.Square =>
+                        GeometricShapeKind.Rectangle,
+
+                    MapToolKind.Hexagon =>
+                        GeometricShapeKind.Hexagon,
+
+                    _ =>
+                        GeometricShapeKind.Ellipse
+                };
+        }
+
         _activeTool =
             kind switch
             {
@@ -281,7 +303,13 @@ public sealed class ToolManager
                     _areaTool,
 
                 MapToolKind.Circle =>
-                    _circleTool,
+                    _geometricShapeTool,
+
+                MapToolKind.Square =>
+                    _geometricShapeTool,
+
+                MapToolKind.Hexagon =>
+                    _geometricShapeTool,
 
                 MapToolKind.TacticalAttack =>
                     _tacticalAttackTool,

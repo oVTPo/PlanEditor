@@ -9224,9 +9224,10 @@ if (item is PlanningPolyline line)
         if (polygon.AreaKind == PlanningAreaKind.Circle)
         {
             /*
-             * Circle không hiển thị 64 vertex nội bộ.
-             * Chỉ hiển thị một handle scale ở mép phải để
-             * resize đồng đều và luôn giữ đúng hình tròn.
+             * Nhóm geometric shape không hiển thị các vertex nội bộ.
+             * Hiện hai transform handle:
+             * - scale ở cạnh phải
+             * - rotate phía trên
              */
             DrawCircleScaleHandle(
                 context,
@@ -9266,76 +9267,295 @@ if (item is PlanningPolyline line)
 
     private void DrawCircleScaleHandle(
         DrawingContext context,
-        PlanningPolygon circle)
+        PlanningPolygon shape)
     {
-        if (circle.Points.Count < 3)
+        if (shape.Points.Count < 3)
             return;
 
-        double sumX = 0.0;
-        double sumY = 0.0;
-
-        foreach (
-            WorldPoint point
-            in circle.Points)
-        {
-            sumX += point.X;
-            sumY += point.Y;
-        }
-
-        WorldPoint center =
-            new WorldPoint(
-                sumX / circle.Points.Count,
-                sumY / circle.Points.Count
+        var screenPoints =
+            new List<Point>(
+                shape.Points.Count
             );
 
-        double radiusSum = 0.0;
+        double centerX = 0.0;
+        double centerY = 0.0;
 
         foreach (
-            WorldPoint point
-            in circle.Points)
+            WorldPoint world
+            in shape.Points)
         {
-            double dx = point.X - center.X;
-            double dy = point.Y - center.Y;
+            Point p =
+                WorldToScreen(
+                    world.X,
+                    world.Y
+                );
 
-            radiusSum +=
-                Math.Sqrt(
-                    dx * dx +
-                    dy * dy
+            screenPoints.Add(
+                p
+            );
+
+            centerX += p.X;
+            centerY += p.Y;
+        }
+
+        Point center =
+            new Point(
+                centerX /
+                    screenPoints.Count,
+                centerY /
+                    screenPoints.Count
+            );
+
+        Vector axisX;
+
+        if (screenPoints.Count == 4)
+        {
+            axisX =
+                screenPoints[1] -
+                screenPoints[0];
+        }
+        else
+        {
+            axisX =
+                screenPoints[0] -
+                center;
+        }
+
+        double axisLength =
+            Math.Sqrt(
+                axisX.X * axisX.X +
+                axisX.Y * axisX.Y
+            );
+
+        if (axisLength < 0.001)
+            return;
+
+        axisX =
+            new Vector(
+                axisX.X /
+                    axisLength,
+                axisX.Y /
+                    axisLength
+            );
+
+        Vector axisY =
+            new Vector(
+                -axisX.Y,
+                axisX.X
+            );
+
+        double minX =
+            double.PositiveInfinity;
+
+        double maxX =
+            double.NegativeInfinity;
+
+        double minY =
+            double.PositiveInfinity;
+
+        double maxY =
+            double.NegativeInfinity;
+
+        foreach (
+            Point p
+            in screenPoints)
+        {
+            Vector d =
+                p -
+                center;
+
+            double px =
+                d.X * axisX.X +
+                d.Y * axisX.Y;
+
+            double py =
+                d.X * axisY.X +
+                d.Y * axisY.Y;
+
+            minX =
+                Math.Min(
+                    minX,
+                    px
+                );
+
+            maxX =
+                Math.Max(
+                    maxX,
+                    px
+                );
+
+            minY =
+                Math.Min(
+                    minY,
+                    py
+                );
+
+            maxY =
+                Math.Max(
+                    maxY,
+                    py
                 );
         }
 
-        double radius =
-            radiusSum / circle.Points.Count;
+        /*
+         * Nới helper frame 5 px ra ngoài shape,
+         * giúp nhìn rõ hơn mà không đè lên stroke chính.
+         */
+        const double helperInset =
+            5.0;
 
-        Point handle =
-            WorldToScreen(
-                center.X + radius,
-                center.Y
+        minX -= helperInset;
+        maxX += helperInset;
+        minY -= helperInset;
+        maxY += helperInset;
+
+        Point topLeft =
+            center +
+            axisX * minX +
+            axisY * minY;
+
+        Point topRight =
+            center +
+            axisX * maxX +
+            axisY * minY;
+
+        Point bottomRight =
+            center +
+            axisX * maxX +
+            axisY * maxY;
+
+        Point bottomLeft =
+            center +
+            axisX * minX +
+            axisY * maxY;
+
+        Vector outward =
+            new Vector(
+                -axisY.X,
+                -axisY.Y
             );
+
+        Point topMid =
+            new Point(
+                (topLeft.X + topRight.X) / 2.0,
+                (topLeft.Y + topRight.Y) / 2.0
+            );
+
+        Point rotationHandle =
+            topMid +
+            outward * 28.0;
+
+
+        var accentBrush =
+            new SolidColorBrush(
+                Color.FromRgb(
+                    245,
+                    145,
+                    25
+                )
+            );
+
+        var helperPen =
+            new Pen(
+                accentBrush,
+                1.15
+            )
+            {
+                DashStyle =
+                    DashStyle.Dash,
+
+                LineCap =
+                    PenLineCap.Flat
+            };
 
         var handlePen =
             new Pen(
-                new SolidColorBrush(
-                    Color.FromRgb(
-                        245,
-                        145,
-                        25
-                    )
-                ),
+                accentBrush,
                 1.7
             );
 
-        context.DrawRectangle(
+        /*
+         * Helper quadrilateral xoay cùng shape.
+         * Đây là frame tham chiếu chính khi chỉnh rotation.
+         */
+        context.DrawLine(
+            helperPen,
+            topLeft,
+            topRight
+        );
+
+        context.DrawLine(
+            helperPen,
+            topRight,
+            bottomRight
+        );
+
+        context.DrawLine(
+            helperPen,
+            bottomRight,
+            bottomLeft
+        );
+
+        context.DrawLine(
+            helperPen,
+            bottomLeft,
+            topLeft
+        );
+
+        /*
+         * Connector vuông góc với cạnh trên.
+         */
+        context.DrawLine(
+            new Pen(
+                accentBrush,
+                1.3
+            ),
+            topMid,
+            rotationHandle
+        );
+
+        /*
+         * 4 corner handles:
+         * kéo tự do X/Y để đổi tỷ lệ shape.
+         * Shift khi kéo sẽ giữ tỷ lệ gốc.
+         */
+        Point[] scaleHandles =
+        {
+            topLeft,
+            topRight,
+            bottomRight,
+            bottomLeft
+        };
+
+        foreach (
+            Point handle
+            in scaleHandles)
+        {
+            context.DrawRectangle(
+                Brushes.White,
+                handlePen,
+                new Rect(
+                    handle.X - 5.0,
+                    handle.Y - 5.0,
+                    10.0,
+                    10.0
+                )
+            );
+        }
+
+        /*
+         * Rotation handle dạng tròn.
+         */
+        context.DrawEllipse(
             Brushes.White,
             handlePen,
-            new Rect(
-                handle.X - 5.0,
-                handle.Y - 5.0,
-                10.0,
-                10.0
-            )
+            rotationHandle,
+            5.5,
+            5.5
         );
     }
+
+
 
     private void DrawPlanningPolygonPattern(
         DrawingContext context,

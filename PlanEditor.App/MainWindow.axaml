@@ -1,13 +1,13 @@
 <Window
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:svg="clr-namespace:Avalonia.Svg.Skia;assembly=Svg.Controls.Skia.Avalonia"
     xmlns:controls="using:PlanEditor.App.Controls"
     xmlns:planning="using:PlanEditor.Core.Planning"
     xmlns:project="using:PlanEditor.App.Project"
         xmlns:symbols="using:PlanEditor.App.Symbols"
         xmlns:colors="using:PlanEditor.App.Colors"
         xmlns:printing="using:PlanEditor.App.Printing"
-    xmlns:ic="using:FluentIcons.Avalonia"
     x:Class="PlanEditor.App.MainWindow"
     Width="1440"
     Height="900"
@@ -284,12 +284,13 @@
                         Classes="tool"
                         Click="OnSelectToolClick"
                         ToolTip.Tip="Chọn đối tượng / quét khối (V)">
-                        <ic:FluentIcon
-                            Icon="Cursor"
-                            IconVariant="Regular"
-                            IconSize="Size20"
-                            Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
-</Button>
+                        <svg:Svg
+    Width="20"
+    Height="20"
+    Path="/Assets/Icons/Tabler/pointer.svg"
+    Stretch="Uniform"
+    EnableCache="True"/>
+                    </Button>
 
                     <!-- GROUP MOVE / TRANSLATE SELECTION -->
                     <Button
@@ -297,11 +298,12 @@
                         Classes="tool"
                         Click="OnGroupMoveToolClick"
                         ToolTip.Tip="Di chuyển toàn bộ khối đang chọn (A)">
-                       <ic:FluentIcon
-                            Icon="ArrowMove"
-                            IconVariant="Regular"
-                            IconSize="Size20"
-                            Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                       <svg:Svg
+                        Width="20"
+                        Height="20"
+                        Path="/Assets/Icons/Tabler/arrows-move.svg"
+                        Stretch="Uniform"
+                        EnableCache="True"/>
                     </Button>
 
                     <!-- HAND / PAN -->
@@ -310,11 +312,12 @@
                         Classes="tool"
                         Click="OnHandToolClick"
                         ToolTip.Tip="Di chuyển bản đồ (H)">
-                        <ic:FluentIcon
-                            Icon="HandLeft"
-                            IconVariant="Regular"
-                            IconSize="Size20"
-                            Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                        <svg:Svg
+                        Width="20"
+                        Height="20"
+                        Path="/Assets/Icons/Tabler/hand-move.svg"
+                        Stretch="Uniform"
+                        EnableCache="True"/>
                     </Button>
 
                     <Border
@@ -328,11 +331,12 @@
                         Classes="tool"
                         Click="OnLineToolClick"
                         ToolTip.Tip="Vẽ đường phương án (L)">
-                        <ic:FluentIcon
-                            Icon="Line"
-                            IconVariant="Regular"
-                            IconSize="Size20"
-                            Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                        <svg:Svg
+                        Width="20"
+                        Height="20"
+                        Path="/Assets/Icons/Tabler/line.svg"
+                        Stretch="Uniform"
+                        EnableCache="True"/>
                     </Button>
 
                     <!-- ARROW -->
@@ -342,11 +346,162 @@
                         Click="OnArrowToolClick"
                         ToolTip.Tip="Vẽ mũi tên (M)">
 
-                        <ic:FluentIcon
-                            Icon="ArrowFlowDiagonalUpRight"
-                            IconVariant="Regular"
-                            IconSize="Size20"
-                            Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                        <svg:Svg
+                        Width="20"
+                        Height="20"
+                        Path="/Assets/Icons/Tabler/arrow-up-right-circle.svg"
+                        Stretch="Uniform"
+                        EnableCache="True"/>
+                    </Button>
+
+                    <!-- CIRCLE -->
+                                        <!-- GEOMETRIC SHAPES: CIRCLE / SQUARE / HEXAGON -->
+                    <Button
+                        x:Name="CircleToolButton"
+                        Classes="tool"
+                        Click="OnCircleToolClick"
+                        ToolTip.Tip="Elip / hình tròn • Chuột phải để đổi hình">
+
+                        <Grid
+                            Width="22"
+                            Height="22">
+
+                            <Ellipse
+                                x:Name="GeometricCircleIcon"
+                                Width="17"
+                                Height="17"
+                                Stroke="#30343B"
+                                StrokeThickness="1.5"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"/>
+
+                            <Rectangle
+                                x:Name="GeometricSquareIcon"
+                                IsVisible="False"
+                                Width="16"
+                                Height="16"
+                                Stroke="#30343B"
+                                StrokeThickness="1.5"
+                                RadiusX="1"
+                                RadiusY="1"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"/>
+
+                            <Path
+                                x:Name="GeometricHexagonIcon"
+                                IsVisible="False"
+                                Width="18"
+                                Height="18"
+                                Data="M11,2 L18.8,6.5 L18.8,15.5 L11,20 L3.2,15.5 L3.2,6.5 Z"
+                                Stroke="#30343B"
+                                StrokeThickness="1.5"
+                                StrokeLineCap="Round"
+                                StrokeJoin="Round"
+                                Fill="Transparent"
+                                Stretch="Uniform"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"/>
+
+                            <Path
+                                Data="M0,4 L4,4 L4,0 Z"
+                                Fill="#73777C"
+                                Width="4"
+                                Height="4"
+                                Stretch="Fill"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Bottom"
+                                Margin="0,0,-1,-1"/>
+                        </Grid>
+
+                       <Button.ContextFlyout>
+                        <Flyout Placement="Bottom">
+                            <StackPanel
+                                Orientation="Horizontal"
+                                Spacing="4"
+                                Margin="4">
+
+                                <!-- ELIP / TRÒN -->
+                                <Button
+                                    Width="36"
+                                    Height="36"
+                                    Padding="0"
+                                    HorizontalContentAlignment="Center"
+                                    VerticalContentAlignment="Center"
+                                    Click="OnGeometricCircleToolClick">
+
+                                    <Grid
+                                        Width="20"
+                                        Height="20">
+
+                                        <Ellipse
+                                            Width="17"
+                                            Height="17"
+                                            Stroke="#30343B"
+                                            StrokeThickness="1.5"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"/>
+
+                                    </Grid>
+                                </Button>
+
+                                <!-- VUÔNG -->
+                                <Button
+                                    Width="36"
+                                    Height="36"
+                                    Padding="0"
+                                    HorizontalContentAlignment="Center"
+                                    VerticalContentAlignment="Center"
+                                    Click="OnGeometricSquareToolClick">
+
+                                    <Grid
+                                        Width="20"
+                                        Height="20">
+
+                                        <Rectangle
+                                            Width="16"
+                                            Height="16"
+                                            Stroke="#30343B"
+                                            StrokeThickness="1.5"
+                                            RadiusX="1"
+                                            RadiusY="1"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"/>
+
+                                    </Grid>
+                                </Button>
+
+                                <!-- LỤC GIÁC -->
+                                <Button
+                                    Width="36"
+                                    Height="36"
+                                    Padding="0"
+                                    HorizontalContentAlignment="Center"
+                                    VerticalContentAlignment="Center"
+                                    Click="OnGeometricHexagonToolClick">
+
+                                    <Grid
+                                        Width="20"
+                                        Height="20">
+
+                                        <Path
+                                            Width="18"
+                                            Height="18"
+                                            Data="M11,2 L18.8,6.5 L18.8,15.5 L11,20 L3.2,15.5 L3.2,6.5 Z"
+                                            Stroke="#30343B"
+                                            StrokeThickness="1.5"
+                                            StrokeLineCap="Round"
+                                            StrokeJoin="Round"
+                                            Fill="Transparent"
+                                            Stretch="Uniform"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"/>
+
+                                    </Grid>
+                                </Button>
+
+                            </StackPanel>
+                        </Flyout>
+                    </Button.ContextFlyout>
                     </Button>
 
                     <!-- AREA -->
@@ -355,12 +510,12 @@
                         Classes="tool"
                         Click="OnAreaToolClick"
                         ToolTip.Tip="Vẽ vùng phương án (R)">
-
-                        <ic:FluentIcon
-                            Icon="Edit"
-                            IconVariant="Regular"
-                            IconSize="Size20"
-                            Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                        <svg:Svg
+                            Width="20"
+                            Height="20"
+                            Path="/Assets/Icons/Tabler/polygon.svg"
+                            Stretch="Uniform"
+                            EnableCache="True"/>
                     </Button>
 
                     <!-- TEXT -->
@@ -370,13 +525,12 @@
                         Click="OnTextToolClick"
                         ToolTip.Tip="Văn bản — click lên bản đồ để nhập (T)">
 
-                        <TextBlock
-                            Text="T"
-                            FontSize="17"
-                            FontWeight="SemiBold"
-                            Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
-                            HorizontalAlignment="Center"
-                            VerticalAlignment="Center"/>
+                        <svg:Svg
+                            Width="20"
+                            Height="20"
+                            Path="/Assets/Icons/Tabler/text-resize.svg"
+                            Stretch="Uniform"
+                            EnableCache="True"/>
                     </Button>
 
                     <Border
@@ -392,12 +546,13 @@
                         Click="OnUndoClick"
                         IsEnabled="False"
                         ToolTip.Tip="Hoàn tác  •  ⌘/Ctrl + Z">
-                        <ic:FluentIcon
-                            Icon="ArrowUndo"
-                            IconVariant="Regular"
-                            IconSize="Size20"
-                            Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
-</Button>
+                        <svg:Svg
+                            Width="20"
+                            Height="20"
+                            Path="/Assets/Icons/Tabler/arrow-back-up.svg"
+                            Stretch="Uniform"
+                            EnableCache="True"/>
+                    </Button>
 
                     <!-- REDO -->
                     <Button
@@ -406,12 +561,13 @@
                         Click="OnRedoClick"
                         IsEnabled="False"
                         ToolTip.Tip="Làm lại  •  ⇧⌘Z / Ctrl + Y">
-                        <ic:FluentIcon
-                            Icon="ArrowRedo"
-                            IconVariant="Regular"
-                            IconSize="Size20"
-                            Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
-</Button>
+                        <svg:Svg
+                            Width="20"
+                            Height="20"
+                            Path="/Assets/Icons/Tabler/arrow-forward-up.svg"
+                            Stretch="Uniform"
+                            EnableCache="True"/>
+                    </Button>
 
                     <Border
                         Width="1"
@@ -425,13 +581,13 @@
                         Classes="tool"
                         Click="OnDeletePlanningObjectClick"
                         ToolTip.Tip="Xóa đối tượng đang chọn">
-                        <ic:FluentIcon
-                            Icon="Delete"
-                            IconVariant="Regular"
-                            IconSize="Size20"
-                            Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
-</Button>
-
+                        <svg:Svg
+                            Width="20"
+                            Height="20"
+                            Path="/Assets/Icons/Tabler/trash.svg"
+                            Stretch="Uniform"
+                            EnableCache="True"/>
+                    </Button>
                 </StackPanel>
 
                 <!-- Display / Print preview modes -->
@@ -448,11 +604,12 @@
                         Classes="modeIcon"
                         Click="OnScreenModeClick"
                         ToolTip.Tip="Chế độ biên tập trên màn hình">
-                        <ic:FluentIcon
-                            Icon="Desktop"
-                            IconVariant="Regular"
-                            IconSize="Size20"
-                            Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                        <svg:Svg
+                            Width="20"
+                            Height="20"
+                            Path="/Assets/Icons/Tabler/device-desktop.svg"
+                            Stretch="Uniform"
+                            EnableCache="True"/>
                     </Button>
 
                     <!-- Print preview mode -->
@@ -461,11 +618,12 @@
                         Classes="modeIcon"
                         Click="OnPrintModeClick"
                         ToolTip.Tip="Chế độ in / xem trước trang giấy">
-                        <ic:FluentIcon
-                            Icon="Document"
-                            IconVariant="Regular"
-                            IconSize="Size20"
-                            Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                        <svg:Svg
+                            Width="20"
+                            Height="20"
+                            Path="/Assets/Icons/Tabler/file.svg"
+                            Stretch="Uniform"
+                            EnableCache="True"/>
                     </Button>
 
                     <StackPanel
@@ -518,11 +676,12 @@
                             Classes="modeIcon"
                             Click="OnFitPlanningToPrintRegionClick"
                             ToolTip.Tip="Vừa vùng in">
-                            <ic:FluentIcon
-                                Icon="ArrowExpand"
-                                IconVariant="Regular"
-                                IconSize="Size20"
-                                Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                            <svg:Svg
+                                Width="20"
+                                Height="20"
+                                Path="/Assets/Icons/Tabler/maximize.svg"
+                                Stretch="Uniform"
+                                EnableCache="True"/>
                         </Button>
 
                         <!-- Export DOCX -->
@@ -530,11 +689,12 @@
                             Classes="modeIcon"
                             Click="OnExportPrintDocxClick"
                             ToolTip.Tip="Xuất DOCX">
-                            <ic:FluentIcon
-                                Icon="DocumentArrowDown"
-                                IconVariant="Regular"
-                                IconSize="Size20"
-                                Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                            <svg:Svg
+                                Width="20"
+                                Height="20"
+                                Path="/Assets/Icons/Tabler/file-download.svg"
+                                Stretch="Uniform"
+                                EnableCache="True"/>
                         </Button>
 
                         <!-- Open generated document for printing -->
@@ -542,11 +702,12 @@
                             Classes="modeIcon"
                             Click="OnExecutePrintClick"
                             ToolTip.Tip="Mở để in">
-                            <ic:FluentIcon
-                                Icon="Print"
-                                IconVariant="Regular"
-                                IconSize="Size20"
-                                Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                            <svg:Svg
+                                Width="20"
+                                Height="20"
+                                Path="/Assets/Icons/Tabler/printer.svg"
+                                Stretch="Uniform"
+                                EnableCache="True"/>
                         </Button>
 
                         <!-- Exit print preview -->
@@ -554,11 +715,12 @@
                             Classes="modeIcon"
                             Click="OnExitPrintModeClick"
                             ToolTip.Tip="Thoát chế độ in">
-                            <ic:FluentIcon
-                                Icon="Dismiss"
-                                IconVariant="Regular"
-                                IconSize="Size20"
-                                Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                            <svg:Svg
+                                Width="20"
+                                Height="20"
+                                Path="/Assets/Icons/Tabler/x.svg"
+                                Stretch="Uniform"
+                                EnableCache="True"/>
                         </Button>
                     </StackPanel>
                 </StackPanel>
@@ -628,12 +790,13 @@
                                 Padding="4"
                                 Click="OnOpenProjectFolderClick"
                                 ToolTip.Tip="Mở thư mục dự án">
-                                <ic:FluentIcon
-                                    Icon="FolderOpen"
-                                    IconVariant="Regular"
-                                    IconSize="Size16"
-                                    Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
-</Button>
+                                <svg:Svg
+                                    Width="16"
+                                    Height="16"
+                                    Path="/Assets/Icons/Tabler/folder-open.svg"
+                                    Stretch="Uniform"
+                                    EnableCache="True"/>
+                         </Button>
 
                             <!-- Refresh -->
                             <Button
@@ -644,12 +807,13 @@
                                 Padding="4"
                                 Click="OnRefreshProjectFolderClick"
                                 ToolTip.Tip="Làm mới">
-                                <ic:FluentIcon
-                                    Icon="ArrowClockwise"
-                                    IconVariant="Regular"
-                                    IconSize="Size16"
-                                    Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
-</Button>
+                                <svg:Svg
+                                    Width="16"
+                                    Height="16"
+                                    Path="/Assets/Icons/Tabler/refresh.svg"
+                                    Stretch="Uniform"
+                                    EnableCache="True"/>
+                        </Button>
                         </StackPanel>
                     </Grid>
                 </Border>
@@ -868,25 +1032,12 @@
                         Classes="tool"
                         Click="OnTacticalAttackToolClick"
                         ToolTip.Tip="Đường tác chiến — click nhiều điểm; Enter/double-click kết thúc; Tiến công/Tập kích">
-                        <Grid Width="22" Height="22">
-                            <Path
-                                Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
-                                StrokeThickness="2.2"
-                                StrokeLineCap="Round"
-                                Data="M11,2 L11,12 M5,9 L11,19 L17,9 M7,9 L11,14 L15,9"/>
-                        </Grid>
-                    </Button>
-
-                    <!-- CIRCLE -->
-                    <Button
-                        x:Name="CircleToolButton"
-                        Classes="tool"
-                        Click="OnCircleToolClick"
-                        ToolTip.Tip="Hình tròn chữ — click để đặt đối tượng, double-click để nhập chữ">
-                        <PathIcon
-                            Width="20"
-                            Height="20"
-                            Data="M12,3 A9,9 0 1 1 11.99,3 Z"/>
+                            <svg:Svg
+                                Width="16"
+                                Height="16"
+                                Path="/Assets/Icons/Tabler/arrow-guide.svg"
+                                Stretch="Uniform"
+                                EnableCache="True"/>
                     </Button>
 
                     <Border
@@ -901,27 +1052,14 @@
                         Classes="tool"
                         Click="OnSingleDoorToolClick"
                         ToolTip.Tip="Cửa 1 cánh — click lên đường hoặc cạnh vùng để gắn">
-                        <Grid Width="22" Height="22">
-                            <Rectangle
-                                Width="6"
-                                Height="8"
-                                Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
-                                HorizontalAlignment="Left"
-                                VerticalAlignment="Bottom"
-                                Margin="1,0,0,2"/>
-                            <Rectangle
-                                Width="6"
-                                Height="8"
-                                Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
-                                HorizontalAlignment="Right"
-                                VerticalAlignment="Bottom"
-                                Margin="0,0,1,2"/>
-                            <Path
-                                Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
-                                StrokeThickness="3"
-                                StrokeLineCap="Square"
-                                Data="M7,14 L15,6"/>
-                        </Grid>
+                            <svg:Svg
+                                Width="12"
+                                Height="12"
+                                Path="/Assets/Icons/Tabler/door.svg"
+                                Stretch="Uniform"
+                                EnableCache="True"
+                                />
+                                
                     </Button>
 
                     <!-- DOUBLE DOOR -->
@@ -930,57 +1068,175 @@
                         Classes="tool"
                         Click="OnDoubleDoorToolClick"
                         ToolTip.Tip="Cửa 2 cánh — click lên đường hoặc cạnh vùng để gắn">
-                        <Grid Width="24" Height="22">
-                            <Rectangle
-                                Width="6"
-                                Height="8"
-                                Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
-                                HorizontalAlignment="Left"
-                                VerticalAlignment="Bottom"/>
-                            <Rectangle
-                                Width="6"
-                                Height="8"
-                                Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
-                                HorizontalAlignment="Right"
-                                VerticalAlignment="Bottom"/>
-                            <Path
-                                Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
-                                StrokeThickness="3"
-                                StrokeLineCap="Square"
-                                Data="M6,14 L11,7 M18,14 L13,7"/>
-                        </Grid>
+                            <svg:Svg
+                                Width="20"
+                                Height="20"
+                                Path="/Assets/Icons/Tabler/double-door.svg"
+                                Stretch="Uniform"
+                                EnableCache="True"
+                            />
                     </Button>
 
-                    <Button
-                        x:Name="BridgeToolButton"
-                        Classes="tool"
-                        ToolTip.Tip="Cầu — chọn dạng cầu rồi click 2 điểm">
-                        <Grid Width="24" Height="22">
-                            <Path
-                                Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
-                                StrokeThickness="1.8"
-                                StrokeLineCap="Square"
-                                Data="M3,7 L21,7 M3,15 L21,15 M7,7 L12,15 M12,15 L17,7"/>
-                        </Grid>
+                   <Button
+                    x:Name="BridgeToolButton"
+                    Classes="tool"
+                    Click="OnBridgeNormalToolClick"
+                    ToolTip.Tip="Cầu thường • Chuột phải để chọn dạng cầu khác">
 
-                        <Button.Flyout>
-                            <Flyout Placement="Bottom">
-                                <StackPanel MinWidth="190" Spacing="3">
-                                    <Button HorizontalContentAlignment="Left" Content="Cầu thường" Click="OnBridgeNormalToolClick"/>
-                                    <Button HorizontalContentAlignment="Left" Content="Cầu sắt" Click="OnBridgeIronToolClick"/>
-                                    <Button HorizontalContentAlignment="Left" Content="Cầu ngầm" Click="OnBridgeSubmersibleToolClick"/>
-                                    <Button HorizontalContentAlignment="Left" Content="Cầu treo" Click="OnBridgeSuspensionToolClick"/>
-                                    <Button HorizontalContentAlignment="Left" Content="Cầu tre / cầu một cây" Click="OnBridgeBambooToolClick"/>
-                                    <Button HorizontalContentAlignment="Left" Content="Cầu nổi" Click="OnBridgePontoonToolClick"/>
-                                    <Button HorizontalContentAlignment="Left" Content="Cầu bị phá" Click="OnBridgeDestroyedToolClick"/>
-                                </StackPanel>
-                            </Flyout>
-                        </Button.Flyout>
-                    </Button>
+                    <Grid
+                        Width="22"
+                        Height="22">
+
+                        <!-- ICON CẦU -->
+                        <svg:Svg
+                            Width="20"
+                            Height="20"
+                            Path="/Assets/Icons/Bridge/bridge.svg"
+                            Stretch="Uniform"
+                            EnableCache="True"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"/>
+
+                        <!-- TAM GIÁC BÁO CÓ MENU PHỤ -->
+                        <Path
+                            Data="M 0 5 L 5 5 L 5 0 Z"
+                            Fill="#60656B"
+                            Width="5"
+                            Height="5"
+                            Stretch="Fill"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Bottom"
+                            Margin="0,0,-1,-1"/>
+
+                    </Grid>
+
+                    <Button.ContextFlyout>
+                        <Flyout Placement="Bottom">
+                            <StackPanel
+                                MinWidth="210"
+                                Spacing="2"
+                                Margin="4"
+                                Orientation="Horizontal"
+                                >
+                                <Button
+                                    Height="34"
+                                    HorizontalContentAlignment="Stretch"
+                                    Click="OnBridgeNormalToolClick">
+                                    <Grid ColumnDefinitions="30,*">
+                                        <svg:Svg
+                                            Width="20"
+                                            Height="20"
+                                            Path="/Assets/Icons/Bridge/bridge.svg"
+                                            Stretch="Uniform"
+                                            EnableCache="True"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"/>
+                                    </Grid>
+                                </Button>
+
+                                <Button
+                                    Height="34"
+                                    HorizontalContentAlignment="Stretch"
+                                    Click="OnBridgeIronToolClick">
+                                    <Grid ColumnDefinitions="30,*">
+                                        <svg:Svg
+                                            Width="20"
+                                            Height="20"
+                                            Path="/Assets/Icons/Bridge/bridge-iron.svg"
+                                            Stretch="Uniform"
+                                            EnableCache="True"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"/>
+                                    </Grid>
+                                </Button>
+
+                                <Button
+                                    Height="34"
+                                    HorizontalContentAlignment="Stretch"
+                                    Click="OnBridgeSubmersibleToolClick">
+                                    <Grid ColumnDefinitions="30,*">
+                                        <svg:Svg
+                                            Width="20"
+                                            Height="20"
+                                            Path="/Assets/Icons/Bridge/bridge-submersible.svg"
+                                            Stretch="Uniform"
+                                            EnableCache="True"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"/>
+                                    </Grid>
+                                </Button>
+
+                                <Button
+                                    Height="34"
+                                    HorizontalContentAlignment="Stretch"
+                                    Click="OnBridgeSuspensionToolClick">
+                                    <Grid ColumnDefinitions="30,*">
+                                        <svg:Svg
+                                            Width="20"
+                                            Height="20"
+                                            Path="/Assets/Icons/Bridge/bridge-suspension.svg"
+                                            Stretch="Uniform"
+                                            EnableCache="True"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"/>
+                                    </Grid>
+                                </Button>
+
+                                <Button
+                                    Height="34"
+                                    HorizontalContentAlignment="Stretch"
+                                    Click="OnBridgeBambooToolClick">
+                                    <Grid ColumnDefinitions="30,*">
+                                        <svg:Svg
+                                            Width="20"
+                                            Height="20"
+                                            Path="/Assets/Icons/Bridge/bridge-bamboo.svg"
+                                            Stretch="Uniform"
+                                            EnableCache="True"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"/>
+                                    </Grid>
+                                </Button>
+
+                                <Button
+                                    Height="34"
+                                    HorizontalContentAlignment="Stretch"
+                                    Click="OnBridgePontoonToolClick">
+                                    <Grid ColumnDefinitions="30,*">
+                                        <svg:Svg
+                                            Width="20"
+                                            Height="20"
+                                            Path="/Assets/Icons/Bridge/bridge-pontoon.svg"
+                                            Stretch="Uniform"
+                                            EnableCache="True"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"/>
+                                    </Grid>
+                                </Button>
+
+                                <Button
+                                    Height="34"
+                                    HorizontalContentAlignment="Stretch"
+                                    Click="OnBridgeDestroyedToolClick">
+                                    <Grid ColumnDefinitions="30,*">
+                                        <svg:Svg
+                                            Width="20"
+                                            Height="20"
+                                            Path="/Assets/Icons/Bridge/bridge-destroyed.svg"
+                                            Stretch="Uniform"
+                                            EnableCache="True"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"/>
+                                    </Grid>
+                                </Button>
+
+                            </StackPanel>
+                        </Flyout>
+                    </Button.ContextFlyout>
+
+                </Button>
 
                     <!-- BRIDGE -->
-
-
                     <Border
                         Width="1"
                         Height="24"
@@ -992,10 +1248,14 @@
                         Classes="tool"
                         Click="OnVegetationAreaToolClick"
                         ToolTip.Tip="Vùng cây — Vườn cây / Rừng xanh hỗn hợp / Bãi rây-sậy">
-                        <PathIcon
-                            Width="20"
-                            Height="20"
-                            Data="M12,2 L17,9 L14,9 L19,15 L13,15 L13,22 L11,22 L11,15 L5,15 L10,9 L7,9 Z"/>
+                             <svg:Svg
+                                Width="20"
+                                Height="20"
+                                Path="/Assets/Icons/Tabler/tree.svg"
+                                Stretch="Uniform"
+                                EnableCache="True"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"/> 
                     </Button>
 
                     <Button
@@ -1003,10 +1263,14 @@
                         Classes="tool"
                         Click="OnWaterAreaToolClick"
                         ToolTip.Tip="Vùng nước">
-                        <PathIcon
-                            Width="20"
-                            Height="20"
-                            Data="M2,7 C5,4 8,10 11,7 C14,4 17,10 22,7 M2,12 C5,9 8,15 11,12 C14,9 17,15 22,12 M2,17 C5,14 8,20 11,17 C14,14 17,20 22,17"/>
+                         <svg:Svg
+                                Width="20"
+                                Height="20"
+                                Path="/Assets/Icons/Tabler/ripple.svg"
+                                Stretch="Uniform"
+                                EnableCache="True"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"/> 
                     </Button>
 
                     <Button
@@ -2244,10 +2508,12 @@
                                                         BorderBrush="#FFEAEAEA" BorderThickness="0,1,0,1"
                                                         Click="OnStartupRecentProjectClick">
                                                         <StackPanel Orientation="Horizontal">
-                                                            <ic:FluentIcon
-                                                                Icon="Document"
-                                                                IconVariant="Filled"
-                                                                Foreground="#5D646B"/>
+                                                            <svg:Svg
+    Width="18"
+    Height="18"
+    Path="/Assets/Icons/Tabler/file.svg"
+    Stretch="Uniform"
+    EnableCache="True"/>
                                                             <Grid ColumnDefinitions="8,*"
                                                                   RowDefinitions="Auto,Auto">
 
@@ -2287,10 +2553,12 @@
                                                         BorderBrush="#FFEAEAEA" BorderThickness="0,1,0,1"
                                                         Click="OnStartupRecentFolderClick">
                                                         <StackPanel Orientation="Horizontal">
-                                                            <ic:FluentIcon
-                                                                Icon="Folder"
-                                                                IconVariant="Filled"
-                                                                Foreground="#5D646B"/>
+                                                            <svg:Svg
+    Width="18"
+    Height="18"
+    Path="/Assets/Icons/Tabler/folder.svg"
+    Stretch="Uniform"
+    EnableCache="True"/>
                                                             <Grid ColumnDefinitions="8,*"
                                                                   RowDefinitions="Auto,Auto">
                 
