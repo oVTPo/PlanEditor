@@ -183,6 +183,8 @@ public sealed class MapCanvas : Control
     private bool _showMinorRoads = true;
     private bool _showBarriers = true;
     private bool _showWater = true;
+    private bool _showRailways = true;
+    private bool _showWaterways = true;
     private bool _showAdministrativeBoundaries = true;
 
     public bool ShowBuildings
@@ -251,6 +253,34 @@ public sealed class MapCanvas : Control
                 return;
 
             _showWater = value;
+            InvalidateVisual();
+        }
+    }
+
+    public bool ShowRailways
+    {
+        get => _showRailways;
+
+        set
+        {
+            if (_showRailways == value)
+                return;
+
+            _showRailways = value;
+            InvalidateVisual();
+        }
+    }
+
+    public bool ShowWaterways
+    {
+        get => _showWaterways;
+
+        set
+        {
+            if (_showWaterways == value)
+                return;
+
+            _showWaterways = value;
             InvalidateVisual();
         }
     }
@@ -5217,6 +5247,24 @@ public MapCanvas()
         InvalidateVisual();
     }
 
+    public MeasurementUnit SelectedMeasurementUnit
+    {
+        get => _toolManager?.SelectedMeasurementUnit ?? MeasurementUnit.Auto;
+        set
+        {
+            if (_toolManager != null)
+                _toolManager.SelectedMeasurementUnit = value;
+        }
+    }
+
+    public bool HasSelectedMeasurement =>
+        _toolManager?.HasSelectedMeasurement ?? false;
+
+    public void ClearMeasurement()
+    {
+        _toolManager?.ClearMeasurement();
+    }
+
     private void OnPlanningSelectionChanged(
         object? sender,
         EventArgs e)
@@ -5868,6 +5916,23 @@ public MapCanvas()
             e.Handled =
                 true;
 
+            return;
+        }
+
+        /*
+         * Measure Tool dùng chuột phải cho menu xóa điểm/đường.
+         * Xử lý trước quy tắc chuột phải để pan bản đồ.
+         */
+        if (
+            (
+                ActivePlanningTool == MapToolKind.Measure ||
+                ActivePlanningTool == MapToolKind.Select
+            ) &&
+            point.Properties.IsRightButtonPressed &&
+            _toolManager?.PointerPressed(e) == true
+        )
+        {
+            e.Handled = true;
             return;
         }
 
@@ -11386,6 +11451,94 @@ IBrush fill =
         {
             var a = feature.Points[i];
             var b = feature.Points[i + 1];
+
+            context.DrawLine(
+                pen,
+                WorldToScreen(a.X, a.Y),
+                WorldToScreen(b.X, b.Y)
+            );
+        }
+    }
+
+    private void DrawWaterway(
+        DrawingContext context,
+        MapFeature feature)
+    {
+        if (
+            feature.GeometryType != MapGeometryType.LineString ||
+            feature.Points.Count < 2
+        )
+        {
+            return;
+        }
+
+        IPen pen =
+            new Pen(
+                new SolidColorBrush(
+                    Color.FromRgb(105, 177, 218)
+                ),
+                MetersPerPixel <= 2.0 ? 2.0 : 1.2
+            )
+            {
+                LineCap = PenLineCap.Round,
+                LineJoin = PenLineJoin.Round
+            };
+
+        DrawLinearMapFeature(context, feature, pen);
+    }
+
+    private void DrawRailway(
+        DrawingContext context,
+        MapFeature feature)
+    {
+        if (
+            feature.GeometryType != MapGeometryType.LineString ||
+            feature.Points.Count < 2
+        )
+        {
+            return;
+        }
+
+        var basePen =
+            new Pen(
+                new SolidColorBrush(
+                    Color.FromRgb(92, 92, 92)
+                ),
+                2.4
+            )
+            {
+                LineCap = PenLineCap.Round,
+                LineJoin = PenLineJoin.Round
+            };
+
+        DrawLinearMapFeature(context, feature, basePen);
+
+        var sleeperPen =
+            new Pen(
+                Brushes.White,
+                1.0
+            )
+            {
+                DashStyle = DashStyle.Dash,
+                LineCap = PenLineCap.Flat
+            };
+
+        DrawLinearMapFeature(context, feature, sleeperPen);
+    }
+
+    private void DrawLinearMapFeature(
+        DrawingContext context,
+        MapFeature feature,
+        IPen pen)
+    {
+        for (
+            int i = 0;
+            i < feature.Points.Count - 1;
+            i++
+        )
+        {
+            WorldPoint a = feature.Points[i];
+            WorldPoint b = feature.Points[i + 1];
 
             context.DrawLine(
                 pen,

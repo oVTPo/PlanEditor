@@ -13,6 +13,7 @@ public enum MapToolKind
     Select,
     GroupMove,
     Hand,
+    Measure,
     Line,
     FenceLooseBarbedWire,
     FenceFallenTree2,
@@ -49,6 +50,7 @@ public sealed class ToolManager
     private readonly SelectTool _selectTool;
     private readonly GroupMoveTool _groupMoveTool;
     private readonly HandTool _handTool;
+    private readonly MeasureTool _measureTool;
     private readonly LineTool _lineTool;
     private readonly FenceTool _fenceTool;
     private readonly AreaTool _areaTool;
@@ -129,6 +131,14 @@ public sealed class ToolManager
             new HandTool(
                 canvas
             );
+
+        _measureTool =
+            new MeasureTool(
+                canvas
+            );
+
+        _measureTool.SelectionChanged +=
+            (_, _) => RaiseSelectionChanged();
 
         _lineTool =
             new LineTool(
@@ -341,6 +351,9 @@ public sealed class ToolManager
                 MapToolKind.Hand =>
                     _handTool,
 
+                MapToolKind.Measure =>
+                    _measureTool,
+
                 MapToolKind.Line =>
                     _lineTool,
 
@@ -431,6 +444,24 @@ public sealed class ToolManager
         );
 
         _canvas.InvalidateVisual();
+    }
+
+    public MeasurementUnit SelectedMeasurementUnit
+    {
+        get => _measureTool.Unit;
+        set
+        {
+            _measureTool.Unit = value;
+            _canvas.InvalidateVisual();
+        }
+    }
+
+    public bool HasSelectedMeasurement =>
+        _measureTool.HasSelection;
+
+    public void ClearMeasurement()
+    {
+        _measureTool.Clear();
     }
 
     public bool IsSelected(
@@ -610,6 +641,15 @@ public sealed class ToolManager
     public bool PointerPressed(
         PointerPressedEventArgs e)
     {
+        if (
+            ActiveToolKind == MapToolKind.Select &&
+            _measureTool.PointerPressedForSelection(e)
+        )
+        {
+            SetSelected(null);
+            return true;
+        }
+
         return _activeTool?
             .PointerPressed(e)
             ?? false;
@@ -618,6 +658,14 @@ public sealed class ToolManager
     public bool PointerMoved(
         PointerEventArgs e)
     {
+        if (
+            ActiveToolKind == MapToolKind.Select &&
+            _measureTool.IsDragging
+        )
+        {
+            return _measureTool.PointerMoved(e);
+        }
+
         return _activeTool?
             .PointerMoved(e)
             ?? false;
@@ -626,6 +674,14 @@ public sealed class ToolManager
     public bool PointerReleased(
         PointerReleasedEventArgs e)
     {
+        if (
+            ActiveToolKind == MapToolKind.Select &&
+            _measureTool.IsDragging
+        )
+        {
+            return _measureTool.PointerReleasedForSelection(e);
+        }
+
         return _activeTool?
             .PointerReleased(e)
             ?? false;
@@ -634,6 +690,15 @@ public sealed class ToolManager
     public bool KeyDown(
         KeyEventArgs e)
     {
+        if (
+            ActiveToolKind == MapToolKind.Select &&
+            _measureTool.HasSelection &&
+            (e.Key == Key.Delete || e.Key == Key.Escape)
+        )
+        {
+            return _measureTool.KeyDown(e);
+        }
+
         return _activeTool?
             .KeyDown(e)
             ?? false;
@@ -642,6 +707,12 @@ public sealed class ToolManager
     public void RenderOverlay(
         DrawingContext context)
     {
+        // Giữ kết quả đo trên màn hình khi chuyển sang công cụ khác.
+        // MapCanvas không gọi RenderOverlay ở chế độ Print nên lớp này
+        // vẫn luôn bị loại khỏi bản in/DOCX.
+        if (!ReferenceEquals(_activeTool, _measureTool))
+            _measureTool.RenderOverlay(context);
+
         _activeTool?
             .RenderOverlay(
                 context

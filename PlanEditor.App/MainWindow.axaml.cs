@@ -2172,6 +2172,9 @@ _projectFolderExplorer
                     Key.L =>
                         MapToolKind.Line,
 
+                    Key.D =>
+                        MapToolKind.Measure,
+
                     Key.M =>
                         MapToolKind.Arrow,
 
@@ -2988,6 +2991,53 @@ _projectFolderExplorer
         );
 
         UpdatePlanningUi();
+    }
+
+    private void OnMeasureToolClick(
+        object? sender,
+        Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        MapCanvas.SelectPlanningObject(
+            null
+        );
+
+        MapCanvas.SetPlanningTool(
+            MapToolKind.Measure
+        );
+
+        UpdatePlanningUi();
+        MapCanvas.Focus();
+    }
+
+    private void OnMeasurementUnitChanged(
+        object? sender,
+        SelectionChangedEventArgs e)
+    {
+        if (!_mainWindowUiReady)
+            return;
+
+        MapCanvas.SelectedMeasurementUnit =
+            MeasurementUnitEditor.SelectedIndex switch
+            {
+                1 => MeasurementUnit.Meter,
+                2 => MeasurementUnit.Kilometer,
+                3 => MeasurementUnit.Foot,
+                4 => MeasurementUnit.Mile,
+                _ => MeasurementUnit.Auto
+            };
+
+        PlanningStatusText.Text =
+            "Đã đổi đơn vị đo";
+    }
+
+    private void OnClearMeasurementClick(
+        object? sender,
+        Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        MapCanvas.ClearMeasurement();
+        MapCanvas.Focus();
+        PlanningStatusText.Text =
+            "Đã xoá kết quả đo";
     }
 
     private void OnFenceToolClick(
@@ -4406,6 +4456,9 @@ _projectFolderExplorer
                 MapToolKind.Line =>
                     "Đường",
 
+                MapToolKind.Measure =>
+                    "Đo khoảng cách",
+
                 MapToolKind.FenceLooseBarbedWire =>
                     "Hàng rào thép gai bùng nhùng",
 
@@ -4488,6 +4541,10 @@ _projectFolderExplorer
         PlanningPropertyText.IsVisible =
             true;
 
+        MeasurePropertyPanel.IsVisible =
+            MapCanvas.ActivePlanningTool == MapToolKind.Measure ||
+            MapCanvas.HasSelectedMeasurement;
+
         ArrowPropertyPanel.IsVisible =
             false;
 
@@ -4508,6 +4565,10 @@ _projectFolderExplorer
 
         if (selected == null)
         {
+            PlanningPropertyText.IsVisible =
+                MapCanvas.ActivePlanningTool != MapToolKind.Measure &&
+                !MapCanvas.HasSelectedMeasurement;
+
             PlanningPropertyText.Text =
                 selectionCount > 1
                     ? $"Công cụ: {toolText}\n\n" +
@@ -6701,6 +6762,11 @@ _projectFolderExplorer
         SetToolButtonActive(
             LineToolButton,
             active == MapToolKind.Line
+        );
+
+        SetToolButtonActive(
+            MeasureToolButton,
+            active == MapToolKind.Measure
         );
 
         SetToolButtonActive(

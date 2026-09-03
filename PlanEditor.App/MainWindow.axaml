@@ -507,6 +507,24 @@
                             EnableCache="True"/>
                     </Button>
 
+                    <!-- MEASURE: editor overlay only, never printed -->
+                    <Button
+                        x:Name="MeasureToolButton"
+                        Classes="tool"
+                        Click="OnMeasureToolClick"
+                        ToolTip.Tip="Đo khoảng cách — click nhiều điểm; Enter để kết thúc; Esc để xoá (D)">
+                        <Viewbox Width="20" Height="20">
+                            <Canvas Width="24" Height="24">
+                                 <svg:Svg
+                                    Width="24"
+                                    Height="24"
+                                    Path="/Assets/Icons/Tabler/ruler-2.svg"
+                                    Stretch="Uniform"
+                                    EnableCache="True"/>
+                            </Canvas>
+                        </Viewbox>
+                    </Button>
+
                     <!-- TEXT -->
                     <Button
                         x:Name="TextToolButton"
@@ -1648,6 +1666,49 @@
                             Foreground="#60656B"
                             FontSize="12"/>
 
+                        <StackPanel
+                            x:Name="MeasurePropertyPanel"
+                            IsVisible="False"
+                            Spacing="10">
+
+                            <TextBlock
+                                Text="ĐO KHOẢNG CÁCH"
+                                FontSize="10"
+                                FontWeight="Bold"
+                                Foreground="#777D84"/>
+
+                            <TextBlock
+                                Text="Click nhiều điểm để đo đường gấp khúc. Enter/double-click để kết thúc; Esc để xoá. Kết quả đo không được in."
+                                TextWrapping="Wrap"
+                                FontSize="11"
+                                Foreground="#60656B"/>
+
+                            <Grid ColumnDefinitions="92,*">
+                                <TextBlock
+                                    Text="Đơn vị"
+                                    FontSize="11"
+                                    Foreground="#5F656C"
+                                    VerticalAlignment="Center"/>
+
+                                <ComboBox
+                                    x:Name="MeasurementUnitEditor"
+                                    Grid.Column="1"
+                                    SelectedIndex="0"
+                                    SelectionChanged="OnMeasurementUnitChanged">
+                                    <ComboBoxItem Content="Tự động (m/km)"/>
+                                    <ComboBoxItem Content="Mét (m)"/>
+                                    <ComboBoxItem Content="Kilômét (km)"/>
+                                    <ComboBoxItem Content="Feet (ft)"/>
+                                    <ComboBoxItem Content="Dặm (mi)"/>
+                                </ComboBox>
+                            </Grid>
+
+                            <Button
+                                Content="Xoá kết quả đo"
+                                HorizontalAlignment="Stretch"
+                                Click="OnClearMeasurementClick"/>
+                        </StackPanel>
+
                         <!-- ================================================= -->
                         <!-- FENCE: cỡ nét và bề rộng hình học                 -->
                         <!-- ================================================= -->
@@ -2682,12 +2743,9 @@
                                             <Expander.Header>
                                                 <TextBlock
                                                     Text="{Binding Header}"
-                                                    FontSize="12"
+                                                    FontSize="9.5"
                                                     FontWeight="SemiBold"
-                                                    VerticalAlignment="Center"
-                                                    Margin="4,0,0,0"
-                                                    />
-                                                    
+                                                    VerticalAlignment="Center"/>
                                             </Expander.Header>
 
                                             <ItemsControl
