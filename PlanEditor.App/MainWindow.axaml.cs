@@ -177,6 +177,15 @@ public partial class MainWindow : Window
         _mainWindowUiReady =
             true;
 
+        SizeChanged +=
+            OnResponsiveWindowSizeChanged;
+
+        Dispatcher.UIThread.Post(
+            () => ApplyResponsiveLayout(
+                Bounds.Width
+            )
+        );
+
         MapCanvas.SetPlanningDocument(
             _planningDocument
         );
@@ -304,6 +313,152 @@ _projectFolderExplorer
 
         Opened +=
             OnWindowOpened;
+    }
+
+    private void OnResponsiveWindowSizeChanged(
+        object? sender,
+        SizeChangedEventArgs e)
+    {
+        ApplyResponsiveLayout(
+            e.NewSize.Width
+        );
+    }
+
+    private void ApplyResponsiveLayout(
+        double width)
+    {
+        if (!_mainWindowUiReady || width <= 0)
+            return;
+
+        /*
+         * Avalonia dùng DIP (device-independent pixel), nên các breakpoint
+         * này tự thích nghi với Retina và Windows scaling 125–200%.
+         */
+        double leftWidth;
+        double rightWidth;
+        double brandWidth;
+        double toolSize;
+        double toolSpacing;
+        double toolMargin;
+
+        if (width >= 1400)
+        {
+            leftWidth = 270;
+            rightWidth = 290;
+            brandWidth = 270;
+            toolSize = 38;
+            toolSpacing = 4;
+            toolMargin = 12;
+        }
+        else if (width >= 1200)
+        {
+            leftWidth = 230;
+            rightWidth = 250;
+            brandWidth = 190;
+            toolSize = 35;
+            toolSpacing = 3;
+            toolMargin = 8;
+        }
+        else if (width >= 1000)
+        {
+            leftWidth = 205;
+            rightWidth = 220;
+            brandWidth = 120;
+            toolSize = 33;
+            toolSpacing = 2;
+            toolMargin = 5;
+        }
+        else if (width >= 820)
+        {
+            leftWidth = 190;
+            rightWidth = 0;
+            brandWidth = 0;
+            toolSize = 32;
+            toolSpacing = 2;
+            toolMargin = 4;
+        }
+        else
+        {
+            leftWidth = 0;
+            rightWidth = 0;
+            brandWidth = 0;
+            toolSize = 31;
+            toolSpacing = 1;
+            toolMargin = 3;
+        }
+
+        LeftSidebar.IsVisible =
+            leftWidth > 0;
+
+        RightPropertySidebar.IsVisible =
+            rightWidth > 0;
+
+        ToolbarBrandZone.IsVisible =
+            brandWidth > 0;
+
+        MainLayoutGrid.ColumnDefinitions[0].Width =
+            new GridLength(
+                leftWidth,
+                GridUnitType.Pixel
+            );
+
+        MainLayoutGrid.ColumnDefinitions[1].Width =
+            new GridLength(
+                1,
+                GridUnitType.Star
+            );
+
+        MainLayoutGrid.ColumnDefinitions[2].Width =
+            new GridLength(
+                rightWidth,
+                GridUnitType.Pixel
+            );
+
+        TopToolbarGrid.ColumnDefinitions[0].Width =
+            new GridLength(
+                brandWidth,
+                GridUnitType.Pixel
+            );
+
+        TopToolbarGrid.ColumnDefinitions[1].Width =
+            new GridLength(
+                1,
+                GridUnitType.Star
+            );
+
+        TopToolbarGrid.ColumnDefinitions[2].Width =
+            GridLength.Auto;
+
+        MainToolsPanel.Spacing =
+            toolSpacing;
+
+        MainToolsPanel.Margin =
+            new Thickness(
+                toolMargin,
+                0
+            );
+
+        foreach (
+            Control control
+            in MainToolsPanel.Children)
+        {
+            if (control is not Button button)
+                continue;
+
+            button.Width =
+                toolSize;
+
+            button.Height =
+                toolSize;
+
+            button.Padding =
+                new Thickness(
+                    Math.Max(
+                        5,
+                        toolSize - 30
+                    )
+                );
+        }
     }
 
     private async void OnWindowOpened(

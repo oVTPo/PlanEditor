@@ -11,8 +11,8 @@
     x:Class="PlanEditor.App.MainWindow"
     Width="1440"
     Height="900"
-    MinWidth="1100"
-    MinHeight="700"
+    MinWidth="760"
+    MinHeight="560"
     Title="Phương án số">
 
     <!--
@@ -158,6 +158,7 @@
     </Window.Styles>
 
     <Grid
+        x:Name="MainLayoutGrid"
         RowDefinitions="Auto,54,*,28"
         ColumnDefinitions="270,*,290">
 
@@ -235,11 +236,13 @@
             BorderThickness="0,0,0,1">
 
             <Grid
+                x:Name="TopToolbarGrid"
                 ColumnDefinitions="270,*,Auto"
                 Margin="0">
 
                 <!-- App / project zone -->
                 <Border
+                    x:Name="ToolbarBrandZone"
                     Grid.Column="0"
                     BorderBrush="#D6D9DE"
                     BorderThickness="0,0,1,0">
@@ -271,8 +274,14 @@
                 </Border>
 
                 <!-- Main tools -->
-                <StackPanel
+                <ScrollViewer
+                    x:Name="MainToolsScrollViewer"
                     Grid.Column="1"
+                    HorizontalScrollBarVisibility="Auto"
+                    VerticalScrollBarVisibility="Disabled">
+
+                <StackPanel
+                    x:Name="MainToolsPanel"
                     Orientation="Horizontal"
                     VerticalAlignment="Center"
                     Margin="12,0"
@@ -596,6 +605,7 @@
                             EnableCache="True"/>
                     </Button>
                 </StackPanel>
+                </ScrollViewer>
 
                 <!-- Display / Print preview modes -->
                 <StackPanel
@@ -739,6 +749,7 @@
         <!-- Chỉ hiện folder + file *.pas                               -->
         <!-- ========================================================= -->
         <Border
+            x:Name="LeftSidebar"
             Grid.Row="2"
             Grid.Column="0"
             Background="#F7F7F7"
@@ -1633,6 +1644,7 @@
         <!-- RIGHT: PROPERTIES                                          -->
         <!-- ========================================================= -->
         <Border
+            x:Name="RightPropertySidebar"
             Grid.Row="2"
             Grid.Column="2"
             Background="#F8F8F9"
